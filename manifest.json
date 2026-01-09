@@ -1,0 +1,118 @@
+{
+  "$schema": "https://stina.app/schemas/extension-manifest.json",
+  "id": "work-manager",
+  "name": "Work Manager",
+  "version": "0.0.1",
+  "description": "Manage work todos and projects.",
+  "type": "tools",
+  "author": {
+    "name": "Stina Team",
+    "url": "https://github.com/einord"
+  },
+  "repository": "https://github.com/einord/stina-ext-work",
+  "license": "MIT",
+  "engines": {
+    "stina": ">=0.7.1"
+  },
+  "platforms": ["web", "electron", "tui"],
+  "main": "index.js",
+
+  "permissions": [
+    "tools.register",
+    "events.emit",
+    "database.own"
+  ],
+
+  "contributes": {
+    "panels": [
+      {
+        "id": "work.todos",
+        "title": "Work",
+        "icon": "check-list",
+        "view": {
+          "kind": "grouped-list",
+          "data": {
+            "toolId": "work_panel_list",
+            "resultKey": "groups",
+            "refreshEvents": [
+              "work.todos.updated",
+              "work.projects.updated"
+            ]
+          },
+          "group": {
+            "idKey": "id",
+            "titleKey": "title",
+            "itemsKey": "items",
+            "collapsedKey": "collapsed",
+            "emptyLabel": "No todos"
+          },
+          "item": {
+            "idKey": "id",
+            "titleKey": "title",
+            "descriptionKey": "description",
+            "iconKey": "icon",
+            "statusKey": "status",
+            "dateKey": "date",
+            "timeKey": "time",
+            "commentCountKey": "commentCount",
+            "comments": {
+              "itemsKey": "comments",
+              "textKey": "text",
+              "createdAtKey": "createdAt"
+            },
+            "subItems": {
+              "itemsKey": "subItems",
+              "idKey": "id",
+              "textKey": "text",
+              "completedAtKey": "completedAt"
+            }
+          },
+          "actions": {
+            "toggleGroup": {
+              "toolId": "work_panel_toggle_group",
+              "params": {
+                "groupId": { "ref": "group.id" },
+                "collapsed": { "ref": "state.collapsed" }
+              }
+            },
+            "toggleSubItem": {
+              "toolId": "work_subitem_toggle",
+              "params": {
+                "todoId": { "ref": "item.id" },
+                "subItemId": { "ref": "subItem.id" }
+              }
+            },
+            "editItem": {
+              "toolId": "work_todo_edit",
+              "params": {
+                "id": { "ref": "item.id" }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "tools": [
+      {
+        "id": "work_panel_list",
+        "name": "List Work Panel",
+        "description": "List todo groups for the work panel."
+      },
+      {
+        "id": "work_panel_toggle_group",
+        "name": "Toggle Work Group",
+        "description": "Toggle collapsed state for a work group."
+      },
+      {
+        "id": "work_subitem_toggle",
+        "name": "Toggle Work Subitem",
+        "description": "Toggle completion for a work todo subitem."
+      },
+      {
+        "id": "work_todo_edit",
+        "name": "Edit Work Todo",
+        "description": "Open or update work todo details."
+      }
+    ]
+  }
+}
