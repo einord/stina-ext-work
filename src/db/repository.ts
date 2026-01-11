@@ -158,7 +158,32 @@ export class WorkRepository {
        ON ext_work_manager_comments(todo_id)`
     )
 
+    await this.cleanupProjectReferences()
+
     this.initialized = true
+  }
+
+  private async cleanupProjectReferences(): Promise<void> {
+    await this.db.execute(
+      `UPDATE ext_work_manager_todos
+       SET project_id = NULL
+       WHERE project_id IS NOT NULL AND TRIM(project_id) = ''`
+    )
+
+    await this.db.execute(
+      `UPDATE ext_work_manager_todos
+       SET project_id = NULL
+       WHERE project_id IS NOT NULL
+         AND project_id NOT IN (SELECT id FROM ext_work_manager_projects)`
+    )
+
+    await this.db.execute(
+      `DELETE FROM ext_work_manager_group_state
+       WHERE group_id IS NOT NULL
+         AND group_id != ?
+         AND group_id NOT IN (SELECT id FROM ext_work_manager_projects)`,
+      [NO_PROJECT_GROUP]
+    )
   }
 
   async listProjects(options: ListProjectsOptions = {}): Promise<WorkProject[]> {
