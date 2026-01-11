@@ -52,6 +52,10 @@ type ChatAPI = {
   appendInstruction: (message: { text: string; conversationId?: string }) => Promise<void>
 }
 
+type UserApi = {
+  getProfile: () => Promise<{ firstName?: string; nickname?: string }>
+}
+
 function activate(context: ExtensionContext): Disposable {
   context.log.info('Activating Work Manager extension')
 
@@ -75,6 +79,20 @@ function activate(context: ExtensionContext): Disposable {
 
   const scheduler = (context as ExtensionContext & { scheduler?: SchedulerAPI }).scheduler
   const chat = (context as ExtensionContext & { chat?: ChatAPI }).chat
+  const userApi = (context as ExtensionContext & { user?: UserApi }).user
+
+  const resolveUserName = async (): Promise<string | undefined> => {
+    if (!userApi) return undefined
+    try {
+      const profile = await userApi.getProfile()
+      return profile.nickname ?? profile.firstName
+    } catch (error) {
+      context.log.warn('Failed to load user profile', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+      return undefined
+    }
+  }
 
   const scheduleTodo = async (todo: WorkTodo): Promise<void> => {
     if (!scheduler) return
@@ -152,7 +170,8 @@ function activate(context: ExtensionContext): Disposable {
         if (!todo || !isTodoActive(todo)) return
 
         const settings = await repository.getSettings()
-        const message = buildInstructionMessage(todo, payload, settings)
+        const userName = await resolveUserName()
+        const message = buildInstructionMessage(todo, payload, settings, userName)
         await chat.appendInstruction({ text: message })
       } catch (error) {
         context.log.warn('Failed to handle scheduler fire', {

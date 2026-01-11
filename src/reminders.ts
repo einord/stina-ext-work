@@ -77,16 +77,19 @@ export const resolveReminderAt = (
 export const buildInstructionMessage = (
   todo: WorkTodo,
   firePayload: SchedulerFirePayload,
-  settings: WorkSettings
+  settings: WorkSettings,
+  userName?: string
 ): string => {
   const locale = resolveLocale(settings)
   const delayMinutes = formatDelayMinutes(firePayload.delayMs)
   const todoJson = JSON.stringify(todo)
+  const name = userName?.trim()
 
   if (locale === 'sv') {
     return [
       '[Automatiskt meddelande ang. TODO-påminnelse]',
-      `Tidpunkten för att-göra-posten (id: ${todo.id}) är nu. Berätta för användaren att ` +
+      `Tidpunkten för att-göra-posten (id: ${todo.id}) är nu. ` +
+        `Berätta${name ? ` för ${name}` : ' för användaren'} att ` +
         `'${todo.title}' infaller nu och anpassa meddelandet efter uppgiftens innehåll.`,
       delayMinutes
         ? `Observera: Påminnelsen är försenad med ${delayMinutes} minuter ` +
@@ -100,7 +103,7 @@ export const buildInstructionMessage = (
 
   return [
     '[Automatic TODO reminder]',
-    `The time for the todo (id: ${todo.id}) is now. Tell the user that ` +
+    `The time for the todo (id: ${todo.id}) is now. Tell${name ? ` ${name}` : ' the user'} that ` +
       `'${todo.title}' is due now and tailor the message to the task's content.`,
     delayMinutes
       ? `Note: This reminder is delayed by ${delayMinutes} minutes ` +
