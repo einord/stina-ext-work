@@ -32,19 +32,33 @@ const generateId = (prefix: string): string => {
 
 const normalizeQuery = (query: string): string => query.trim().toLowerCase()
 
+const normalizeOptionalString = (value?: string | null): string | null | undefined => {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
+}
+
 const deriveDateTime = (dueAt?: string, date?: string, time?: string, allDay?: boolean) => {
-  if (date && time) return { date, time }
+  const normalizedDate = normalizeOptionalString(date) ?? undefined
+  const normalizedTime = normalizeOptionalString(time) ?? undefined
+
+  if (normalizedDate && normalizedTime) {
+    return { date: normalizedDate, time: normalizedTime }
+  }
+
   if (dueAt && dueAt.length >= 16) {
     const derivedDate = dueAt.slice(0, 10)
     const derivedTime = dueAt.slice(11, 16)
     return {
-      date: date ?? derivedDate,
-      time: time ?? (allDay ? '00:00' : derivedTime),
+      date: normalizedDate ?? derivedDate,
+      time: normalizedTime ?? (allDay ? '00:00' : derivedTime),
     }
   }
+
   return {
-    date: date ?? '',
-    time: time ?? (allDay ? '00:00' : ''),
+    date: normalizedDate ?? '',
+    time: normalizedTime ?? (allDay ? '00:00' : ''),
   }
 }
 
@@ -395,13 +409,17 @@ export class WorkRepository {
     await this.initialize()
 
     const now = new Date().toISOString()
-    const todoId = id ?? generateId('todo')
+    const normalizedId = normalizeOptionalString(id)
+    const todoId = normalizedId ?? generateId('todo')
     const existing = await this.getTodo(todoId)
+    const normalizedProjectId = normalizeOptionalString(input.projectId)
 
     if (existing) {
+      const projectId =
+        normalizedProjectId === undefined ? existing.projectId ?? null : normalizedProjectId
       const merged: WorkTodo = {
         ...existing,
-        projectId: input.projectId ?? existing.projectId ?? null,
+        projectId,
         title: input.title ?? existing.title,
         description: input.description ?? existing.description ?? undefined,
         icon: input.icon ?? existing.icon,
@@ -457,13 +475,15 @@ export class WorkRepository {
       throw new Error('Todo dueAt is required')
     }
 
+    const projectId = normalizedProjectId ?? null
+
     await this.db.execute(
       `INSERT INTO ext_work_manager_todos (
         id, project_id, title, description, icon, status, due_at, date, time, all_day, reminder_minutes, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         todoId,
-        input.projectId ?? null,
+        projectId,
         input.title,
         input.description ?? null,
         input.icon,
@@ -480,7 +500,7 @@ export class WorkRepository {
 
     return {
       id: todoId,
-      projectId: input.projectId ?? null,
+      projectId,
       title: input.title,
       description: input.description ?? undefined,
       icon: input.icon,
@@ -838,8 +858,9 @@ export class WorkRepository {
     const groupIndex = new Map(groups.map((group) => [group.id, group]))
 
     for (const todo of todos) {
-      const groupId = todo.project_id ?? NO_PROJECT_GROUP
-      const group = groupIndex.get(groupId)
+      const projectId = normalizeOptionalString(todo.project_id)
+      const groupId = projectId ?? NO_PROJECT_GROUP
+      const group = groupIndex.get(groupId) ?? groupIndex.get(NO_PROJECT_GROUP)
       if (!group) continue
 
       const todoComments = commentsByTodo.get(todo.id) ?? []
