@@ -22,6 +22,32 @@ interface DeleteTodoParams {
   id: string
 }
 
+const normalizeProjectId = (value: unknown): string | null | undefined => {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed ? trimmed : null
+  }
+  return null
+}
+
+const normalizeReminderMinutes = (value: unknown): number | null | undefined => {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return undefined
+    if (trimmed === 'null') return null
+    const parsed = Number(trimmed)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
 export function createListTodosTool(repository: WorkRepository): Tool {
   return {
     id: 'work_todos_list',
@@ -102,7 +128,12 @@ export function createUpsertTodoTool(
     async execute(params: Record<string, unknown>): Promise<ToolResult> {
       try {
         const input = params as UpsertTodoParams
-        const todo = await repository.upsertTodo(input.id, input)
+        const normalized: UpsertTodoParams = {
+          ...input,
+          projectId: normalizeProjectId(input.projectId),
+          reminderMinutes: normalizeReminderMinutes(input.reminderMinutes),
+        }
+        const todo = await repository.upsertTodo(normalized.id, normalized)
         onChange?.(todo)
         return { success: true, data: todo }
       } catch (error) {

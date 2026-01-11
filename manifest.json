@@ -2,7 +2,7 @@
   "$schema": "https://stina.app/schemas/extension-manifest.json",
   "id": "work-manager",
   "name": "Work Manager",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "Manage work todos and projects.",
   "type": "tools",
   "author": {
@@ -222,8 +222,19 @@
               },
               {
                 "id": "projectId",
-                "title": "Project ID",
-                "type": "string"
+                "title": "Project",
+                "type": "select",
+                "default": "",
+                "options": [
+                  { "value": "", "label": "No project" }
+                ],
+                "optionsToolId": "work_projects_list",
+                "optionsParams": { "limit": 200 },
+                "optionsMapping": {
+                  "itemsKey": "projects",
+                  "valueKey": "id",
+                  "labelKey": "name"
+                }
               },
               {
                 "id": "dueAt",
@@ -250,7 +261,18 @@
               {
                 "id": "reminderMinutes",
                 "title": "Reminder minutes",
-                "type": "number"
+                "type": "select",
+                "default": "",
+                "options": [
+                  { "value": "", "label": "Use default" },
+                  { "value": "null", "label": "No reminder" },
+                  { "value": "0", "label": "At time" },
+                  { "value": "5", "label": "5 minutes before" },
+                  { "value": "10", "label": "10 minutes before" },
+                  { "value": "15", "label": "15 minutes before" },
+                  { "value": "30", "label": "30 minutes before" },
+                  { "value": "60", "label": "1 hour before" }
+                ]
               }
             ]
           }
