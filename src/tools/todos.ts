@@ -1,6 +1,6 @@
 import type { Tool, ToolResult } from '@stina/extension-api/runtime'
 import type { WorkRepository } from '../db/repository.js'
-import type { WorkTodoInput, WorkTodoStatus } from '../types.js'
+import type { WorkTodo, WorkTodoInput, WorkTodoStatus } from '../types.js'
 
 interface ListTodosParams {
   query?: string
@@ -77,7 +77,7 @@ export function createGetTodoTool(repository: WorkRepository): Tool {
 
 export function createUpsertTodoTool(
   repository: WorkRepository,
-  onChange?: () => void
+  onChange?: (todo: WorkTodo) => void
 ): Tool {
   return {
     id: 'work_todos_upsert',
@@ -103,7 +103,7 @@ export function createUpsertTodoTool(
       try {
         const input = params as UpsertTodoParams
         const todo = await repository.upsertTodo(input.id, input)
-        onChange?.()
+        onChange?.(todo)
         return { success: true, data: todo }
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }
@@ -114,7 +114,7 @@ export function createUpsertTodoTool(
 
 export function createDeleteTodoTool(
   repository: WorkRepository,
-  onChange?: () => void
+  onDelete?: (todoId: string) => void
 ): Tool {
   return {
     id: 'work_todos_delete',
@@ -133,7 +133,7 @@ export function createDeleteTodoTool(
         if (!id) return { success: false, error: 'Todo id is required' }
         const deleted = await repository.deleteTodo(id)
         if (!deleted) return { success: false, error: 'Todo not found' }
-        onChange?.()
+        onDelete?.(id)
         return { success: true }
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }

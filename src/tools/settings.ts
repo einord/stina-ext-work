@@ -1,6 +1,6 @@
 import type { Tool, ToolResult } from '@stina/extension-api/runtime'
 import type { WorkRepository } from '../db/repository.js'
-import type { WorkSettingsUpdate } from '../types.js'
+import type { WorkSettings, WorkSettingsUpdate } from '../types.js'
 
 export function createGetSettingsTool(repository: WorkRepository): Tool {
   return {
@@ -24,7 +24,7 @@ export function createGetSettingsTool(repository: WorkRepository): Tool {
 
 export function createUpdateSettingsTool(
   repository: WorkRepository,
-  onChange?: () => void
+  onChange?: (settings: WorkSettings) => void
 ): Tool {
   return {
     id: 'work_settings_update',
@@ -35,13 +35,14 @@ export function createUpdateSettingsTool(
       properties: {
         defaultReminderMinutes: { type: 'number' },
         allDayReminderTime: { type: 'string' },
+        reminderLocale: { type: 'string' },
       },
     },
     async execute(params: Record<string, unknown>): Promise<ToolResult> {
       try {
         const update = params as WorkSettingsUpdate
         const settings = await repository.updateSettings(update)
-        onChange?.()
+        onChange?.(settings)
         return { success: true, data: settings }
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }

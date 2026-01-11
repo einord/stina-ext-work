@@ -76,11 +76,13 @@ export interface WorkTodoInput {
 export interface WorkSettings {
   defaultReminderMinutes: number | null
   allDayReminderTime: string | null
+  reminderLocale: string | null
 }
 
 export interface WorkSettingsUpdate {
   defaultReminderMinutes?: number | null
   allDayReminderTime?: string | null
+  reminderLocale?: string | null
 }
 
 export interface ListProjectsOptions {

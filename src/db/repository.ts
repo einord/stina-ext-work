@@ -23,6 +23,7 @@ const NO_PROJECT_GROUP = 'no-project'
 const DEFAULT_SETTINGS: WorkSettings = {
   defaultReminderMinutes: null,
   allDayReminderTime: null,
+  reminderLocale: null,
 }
 
 const generateId = (prefix: string): string => {
@@ -690,6 +691,9 @@ export class WorkRepository {
       if (row.key === 'allDayReminderTime') {
         settings.allDayReminderTime = JSON.parse(row.value) as string | null
       }
+      if (row.key === 'reminderLocale') {
+        settings.reminderLocale = JSON.parse(row.value) as string | null
+      }
     }
 
     return settings
@@ -709,11 +713,14 @@ export class WorkRepository {
         update.allDayReminderTime !== undefined
           ? update.allDayReminderTime
           : current.allDayReminderTime,
+      reminderLocale:
+        update.reminderLocale !== undefined ? update.reminderLocale : current.reminderLocale,
     }
 
     const entries: Array<[string, string]> = [
       ['defaultReminderMinutes', JSON.stringify(next.defaultReminderMinutes)],
       ['allDayReminderTime', JSON.stringify(next.allDayReminderTime)],
+      ['reminderLocale', JSON.stringify(next.reminderLocale)],
     ]
 
     for (const [key, value] of entries) {
