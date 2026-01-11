@@ -20,6 +20,7 @@ import {
   createDeleteCommentTool,
   createAddSubItemTool,
   createDeleteSubItemTool,
+  createListSettingsTool,
   createGetSettingsTool,
   createUpdateSettingsTool,
 } from './tools/index.js'
@@ -119,9 +120,19 @@ function activate(context: ExtensionContext): Disposable {
   const scheduleAllTodos = async (): Promise<void> => {
     if (!scheduler) return
     try {
-      const todos = await repository.listTodos({ limit: 1000 })
-      for (const todo of todos) {
-        await scheduleTodo(todo)
+      const pageSize = 200
+      let offset = 0
+
+      while (true) {
+        const todos = await repository.listTodos({ limit: pageSize, offset })
+        if (todos.length === 0) break
+
+        for (const todo of todos) {
+          await scheduleTodo(todo)
+        }
+
+        if (todos.length < pageSize) break
+        offset += pageSize
       }
     } catch (error) {
       context.log.warn('Failed to schedule reminders for todos', {
@@ -183,6 +194,7 @@ function activate(context: ExtensionContext): Disposable {
     context.tools!.register(createAddSubItemTool(repository, emitTodoRefresh)),
     context.tools!.register(createDeleteSubItemTool(repository, emitTodoRefresh)),
 
+    context.tools!.register(createListSettingsTool(repository)),
     context.tools!.register(createGetSettingsTool(repository)),
     context.tools!.register(
       createUpdateSettingsTool(repository, () => {

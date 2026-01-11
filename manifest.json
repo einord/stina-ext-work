@@ -2,7 +2,7 @@
   "$schema": "https://stina.app/schemas/extension-manifest.json",
   "id": "work-manager",
   "name": "Work Manager",
-  "version": "0.0.7",
+  "version": "0.0.10",
   "description": "Manage work todos and projects.",
   "type": "tools",
   "author": {
@@ -59,6 +59,61 @@
             "id": "description",
             "title": "Description",
             "type": "string"
+          }
+        ]
+      },
+      {
+        "id": "reminders",
+        "title": "Reminders",
+        "description": "Default reminder behavior for todos.",
+        "view": {
+          "kind": "list",
+          "listToolId": "work_settings_list",
+          "getToolId": "work_settings_get",
+          "upsertToolId": "work_settings_update",
+          "mapping": {
+            "itemsKey": "settings",
+            "countKey": "count",
+            "idKey": "id",
+            "labelKey": "label",
+            "descriptionKey": "description"
+          },
+          "idParam": "id"
+        },
+        "fields": [
+          {
+            "id": "defaultReminderMinutes",
+            "title": "Default reminder",
+            "description": "Used when the user does not specify a reminder offset.",
+            "type": "select",
+            "default": "null",
+            "options": [
+              { "value": "null", "label": "No reminder" },
+              { "value": "0", "label": "At time" },
+              { "value": "5", "label": "5 minutes before" },
+              { "value": "10", "label": "10 minutes before" },
+              { "value": "15", "label": "15 minutes before" },
+              { "value": "30", "label": "30 minutes before" },
+              { "value": "60", "label": "1 hour before" }
+            ]
+          },
+          {
+            "id": "allDayReminderTime",
+            "title": "All-day reminder time",
+            "description": "HH:MM (24h). Used for all-day todos.",
+            "type": "string"
+          },
+          {
+            "id": "reminderLocale",
+            "title": "Reminder language",
+            "description": "Language for reminder instructions to Stina.",
+            "type": "select",
+            "default": "auto",
+            "options": [
+              { "value": "auto", "label": "Auto" },
+              { "value": "sv", "label": "Swedish" },
+              { "value": "en", "label": "English" }
+            ]
           }
         ]
       }
@@ -284,6 +339,11 @@
         "description": "Delete a subitem from a todo."
       },
       {
+        "id": "work_settings_list",
+        "name": "List Work Settings",
+        "description": "List settings entries for the Work extension."
+      },
+      {
         "id": "work_settings_get",
         "name": "Get Work Settings",
         "description": "Get work extension settings."
@@ -292,6 +352,16 @@
         "id": "work_settings_update",
         "name": "Update Work Settings",
         "description": "Update work extension settings."
+      }
+    ],
+    "prompts": [
+      {
+        "id": "work-manager-instructions",
+        "section": "tools",
+        "i18n": {
+          "en": "You have access to Work Manager tools for projects, todos, subitems, and comments. Use work_projects_list/get/upsert/delete to manage projects. Use work_todos_list/get/upsert/delete to manage todos; dueAt must be ISO 8601 with timezone. Keep date/time fields consistent with dueAt. Use work_subitems_add/delete and work_subitem_toggle for task steps. Use work_comments_add/delete to keep notes. You can adjust default reminders via work_settings_get/update (defaultReminderMinutes, allDayReminderTime, reminderLocale). When a reminder instruction arrives from the system, respond directly to the user with a friendly reminder tailored to the todo content.",
+          "sv": "Du har tillgång till Work Manager-verktyg för projekt, att-göra-poster, delmoment och kommentarer. Använd work_projects_list/get/upsert/delete för projekt. Använd work_todos_list/get/upsert/delete för att-göra-poster; dueAt måste vara ISO 8601 med tidszon. Håll date/time konsekvent med dueAt. Använd work_subitems_add/delete och work_subitem_toggle för delmoment. Använd work_comments_add/delete för anteckningar. Du kan justera standardpåminnelser via work_settings_get/update (defaultReminderMinutes, allDayReminderTime, reminderLocale). När ett påminnelsemeddelande kommer från systemet, svara direkt till användaren med en vänlig påminnelse anpassad till innehållet."
+        }
       }
     ]
   }

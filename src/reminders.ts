@@ -12,8 +12,10 @@ const ACTIVE_STATUSES = new Set(['not_started', 'in_progress'])
 
 const resolveLocale = (settings: WorkSettings): 'sv' | 'en' => {
   const stored = settings.reminderLocale?.toLowerCase()
-  if (stored?.startsWith('sv')) return 'sv'
-  if (stored?.startsWith('en')) return 'en'
+  if (stored && stored !== 'auto') {
+    if (stored.startsWith('sv')) return 'sv'
+    if (stored.startsWith('en')) return 'en'
+  }
 
   const envLocale =
     (typeof process !== 'undefined' && (process.env.LANG || process.env.LC_ALL || process.env.LC_MESSAGES)) ||

@@ -16,4 +16,8 @@ export {
 } from './todos.js'
 export { createAddCommentTool, createDeleteCommentTool } from './comments.js'
 export { createAddSubItemTool, createDeleteSubItemTool } from './subitems.js'
-export { createGetSettingsTool, createUpdateSettingsTool } from './settings.js'
+export {
+  createListSettingsTool,
+  createGetSettingsTool,
+  createUpdateSettingsTool,
+} from './settings.js'
