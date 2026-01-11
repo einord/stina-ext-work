@@ -1,10 +1,14 @@
 import type { Tool, ToolResult } from '@stina/extension-api/runtime'
+import type { WorkRepository } from '../db/repository.js'
 
 interface EditTodoParams {
   id: string
 }
 
-export function createEditTodoTool(onChange?: () => void): Tool {
+export function createEditTodoTool(
+  repository: WorkRepository,
+  onChange?: () => void
+): Tool {
   return {
     id: 'work_todo_edit',
     name: 'Edit Work Todo',
@@ -19,8 +23,9 @@ export function createEditTodoTool(onChange?: () => void): Tool {
     async execute(params: Record<string, unknown>): Promise<ToolResult> {
       try {
         const { id } = params as unknown as EditTodoParams
-        if (!id) {
-          return { success: false, error: 'Todo id is required' }
+        const exists = await repository.hasTodo(id)
+        if (!exists) {
+          return { success: false, error: 'Todo not found' }
         }
         onChange?.()
         return { success: true }

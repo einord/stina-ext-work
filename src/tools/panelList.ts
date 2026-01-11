@@ -1,11 +1,7 @@
 import type { Tool, ToolResult } from '@stina/extension-api/runtime'
-import { listGroups, type WorkGroup } from '../data/store.js'
+import type { WorkRepository } from '../db/repository.js'
 
-interface PanelListResult {
-  groups: Array<WorkGroup & { items: Array<WorkGroup['items'][number] & { commentCount: number }> }>
-}
-
-export function createPanelListTool(): Tool {
+export function createPanelListTool(repository: WorkRepository): Tool {
   return {
     id: 'work_panel_list',
     name: 'List Work Panel',
@@ -16,16 +12,8 @@ export function createPanelListTool(): Tool {
     },
     async execute(): Promise<ToolResult> {
       try {
-        const groups = listGroups().map((group) => ({
-          ...group,
-          items: group.items.map((item) => ({
-            ...item,
-            commentCount: item.comments.length,
-          })),
-        }))
-
-        const data: PanelListResult = { groups }
-        return { success: true, data }
+        const groups = await repository.listPanelGroups()
+        return { success: true, data: { groups } }
       } catch (error) {
         return {
           success: false,

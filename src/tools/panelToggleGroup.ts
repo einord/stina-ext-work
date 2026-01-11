@@ -1,12 +1,15 @@
 import type { Tool, ToolResult } from '@stina/extension-api/runtime'
-import { setGroupCollapsed } from '../data/store.js'
+import type { WorkRepository } from '../db/repository.js'
 
 interface ToggleGroupParams {
   groupId: string
   collapsed: boolean
 }
 
-export function createToggleGroupTool(onChange?: () => void): Tool {
+export function createToggleGroupTool(
+  repository: WorkRepository,
+  onChange?: () => void
+): Tool {
   return {
     id: 'work_panel_toggle_group',
     name: 'Toggle Work Group',
@@ -22,7 +25,7 @@ export function createToggleGroupTool(onChange?: () => void): Tool {
     async execute(params: Record<string, unknown>): Promise<ToolResult> {
       try {
         const { groupId, collapsed } = params as unknown as ToggleGroupParams
-        const updated = setGroupCollapsed(groupId, collapsed)
+        const updated = await repository.setGroupCollapsed(groupId, collapsed)
         if (!updated) {
           return { success: false, error: 'Group not found' }
         }

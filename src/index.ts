@@ -9,11 +9,24 @@ import {
   createToggleSubItemTool,
   createEditTodoTool,
 } from './tools/index.js'
+import { WorkRepository } from './db/repository.js'
 
 type EventsApi = { emit: (name: string, payload?: Record<string, unknown>) => Promise<void> }
 
+type DatabaseApi = {
+  execute: <T = unknown>(sql: string, params?: unknown[]) => Promise<T[]>
+}
+
 function activate(context: ExtensionContext): Disposable {
   context.log.info('Activating Work Manager extension')
+
+  if (!context.database) {
+    context.log.warn('Database permission missing; Work Manager disabled')
+    return { dispose: () => undefined }
+  }
+
+  const repository = new WorkRepository(context.database as DatabaseApi)
+  void repository.initialize()
 
   const emitRefresh = () => {
     const eventsApi = (context as ExtensionContext & { events?: EventsApi }).events
@@ -24,10 +37,10 @@ function activate(context: ExtensionContext): Disposable {
   }
 
   const disposables = [
-    context.tools!.register(createPanelListTool()),
-    context.tools!.register(createToggleGroupTool(emitRefresh)),
-    context.tools!.register(createToggleSubItemTool(emitRefresh)),
-    context.tools!.register(createEditTodoTool(emitRefresh)),
+    context.tools!.register(createPanelListTool(repository)),
+    context.tools!.register(createToggleGroupTool(repository, emitRefresh)),
+    context.tools!.register(createToggleSubItemTool(repository, emitRefresh)),
+    context.tools!.register(createEditTodoTool(repository, emitRefresh)),
   ]
 
   context.log.info('Work Manager tools registered', {

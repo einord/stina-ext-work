@@ -1,12 +1,15 @@
 import type { Tool, ToolResult } from '@stina/extension-api/runtime'
-import { toggleSubItem } from '../data/store.js'
+import type { WorkRepository } from '../db/repository.js'
 
 interface ToggleSubItemParams {
   todoId: string
   subItemId: string
 }
 
-export function createToggleSubItemTool(onChange?: () => void): Tool {
+export function createToggleSubItemTool(
+  repository: WorkRepository,
+  onChange?: () => void
+): Tool {
   return {
     id: 'work_subitem_toggle',
     name: 'Toggle Work Subitem',
@@ -22,7 +25,7 @@ export function createToggleSubItemTool(onChange?: () => void): Tool {
     async execute(params: Record<string, unknown>): Promise<ToolResult> {
       try {
         const { todoId, subItemId } = params as unknown as ToggleSubItemParams
-        const updated = toggleSubItem(todoId, subItemId)
+        const updated = await repository.toggleSubItem(todoId, subItemId)
         if (!updated) {
           return { success: false, error: 'Subitem not found' }
         }
