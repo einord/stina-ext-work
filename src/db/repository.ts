@@ -172,6 +172,30 @@ export class WorkRepository {
 
     await this.db.execute(
       `UPDATE ext_work_manager_todos
+       SET status = 'not_started'
+       WHERE status IN ('pending', 'todo', 'open')`
+    )
+
+    await this.db.execute(
+      `UPDATE ext_work_manager_todos
+       SET status = 'in_progress'
+       WHERE status IN ('inprogress', 'in-progress')`
+    )
+
+    await this.db.execute(
+      `UPDATE ext_work_manager_todos
+       SET status = 'completed'
+       WHERE status IN ('complete', 'done')`
+    )
+
+    await this.db.execute(
+      `UPDATE ext_work_manager_todos
+       SET status = 'cancelled'
+       WHERE status = 'canceled'`
+    )
+
+    await this.db.execute(
+      `UPDATE ext_work_manager_todos
        SET project_id = NULL
        WHERE project_id IS NOT NULL
          AND project_id NOT IN (SELECT id FROM ext_work_manager_projects)`

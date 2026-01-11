@@ -22,6 +22,13 @@ interface DeleteTodoParams {
   id: string
 }
 
+const STATUS_OPTIONS: WorkTodoStatus[] = [
+  'not_started',
+  'in_progress',
+  'completed',
+  'cancelled',
+]
+
 const normalizeProjectId = (value: unknown): string | null | undefined => {
   if (value === undefined) return undefined
   if (value === null) return null
@@ -48,6 +55,45 @@ const normalizeReminderMinutes = (value: unknown): number | null | undefined => 
   return null
 }
 
+const normalizeStatus = (value: unknown): WorkTodoStatus | undefined => {
+  if (typeof value !== 'string') return undefined
+  const normalized = value.trim().toLowerCase()
+  switch (normalized) {
+    case 'not_started':
+    case 'not-started':
+      return 'not_started'
+    case 'in_progress':
+    case 'in-progress':
+    case 'inprogress':
+      return 'in_progress'
+    case 'completed':
+    case 'complete':
+    case 'done':
+      return 'completed'
+    case 'cancelled':
+    case 'canceled':
+      return 'cancelled'
+    case 'pending':
+    case 'todo':
+    case 'open':
+      return 'not_started'
+    default:
+      return undefined
+  }
+}
+
+const validateStatus = (value: unknown): { ok: true; status?: WorkTodoStatus } | { ok: false; error: string } => {
+  if (value === undefined) return { ok: true, status: undefined }
+  const normalized = normalizeStatus(value)
+  if (!normalized) {
+    return {
+      ok: false,
+      error: `Invalid todo status "${String(value)}". Allowed: ${STATUS_OPTIONS.join(', ')}`,
+    }
+  }
+  return { ok: true, status: normalized }
+}
+
 export function createListTodosTool(repository: WorkRepository): Tool {
   return {
     id: 'work_todos_list',
@@ -66,7 +112,17 @@ export function createListTodosTool(repository: WorkRepository): Tool {
     async execute(params: Record<string, unknown>): Promise<ToolResult> {
       try {
         const { query, projectId, status, limit, offset } = params as ListTodosParams
-        const todos = await repository.listTodos({ query, projectId, status, limit, offset })
+        const statusCheck = validateStatus(status)
+        if (!statusCheck.ok) {
+          return { success: false, error: statusCheck.error }
+        }
+        const todos = await repository.listTodos({
+          query,
+          projectId,
+          status: statusCheck.status,
+          limit,
+          offset,
+        })
         return { success: true, data: { count: todos.length, todos } }
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }
@@ -128,9 +184,14 @@ export function createUpsertTodoTool(
     async execute(params: Record<string, unknown>): Promise<ToolResult> {
       try {
         const input = params as UpsertTodoParams
+        const statusCheck = validateStatus(input.status)
+        if (!statusCheck.ok) {
+          return { success: false, error: statusCheck.error }
+        }
         const normalized: UpsertTodoParams = {
           ...input,
           projectId: normalizeProjectId(input.projectId),
+          status: statusCheck.status,
           reminderMinutes: normalizeReminderMinutes(input.reminderMinutes),
         }
         const todo = await repository.upsertTodo(normalized.id, normalized)

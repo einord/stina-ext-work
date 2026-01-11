@@ -8,8 +8,6 @@ export interface SchedulerFirePayload {
   delayMs: number
 }
 
-const ACTIVE_STATUSES = new Set(['not_started', 'in_progress'])
-
 const resolveLocale = (settings: WorkSettings): 'sv' | 'en' => {
   const stored = settings.reminderLocale?.toLowerCase()
   if (stored && stored !== 'auto') {
@@ -43,7 +41,7 @@ const withSeconds = (time: string): string => {
 }
 
 export const isTodoActive = (todo: WorkTodo): boolean => {
-  return ACTIVE_STATUSES.has(todo.status)
+  return todo.status !== 'completed' && todo.status !== 'cancelled'
 }
 
 export const resolveReminderAt = (
