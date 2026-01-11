@@ -8,6 +8,20 @@ import {
   createToggleGroupTool,
   createToggleSubItemTool,
   createEditTodoTool,
+  createListProjectsTool,
+  createGetProjectTool,
+  createUpsertProjectTool,
+  createDeleteProjectTool,
+  createListTodosTool,
+  createGetTodoTool,
+  createUpsertTodoTool,
+  createDeleteTodoTool,
+  createAddCommentTool,
+  createDeleteCommentTool,
+  createAddSubItemTool,
+  createDeleteSubItemTool,
+  createGetSettingsTool,
+  createUpdateSettingsTool,
 } from './tools/index.js'
 import { WorkRepository } from './db/repository.js'
 
@@ -28,23 +42,63 @@ function activate(context: ExtensionContext): Disposable {
   const repository = new WorkRepository(context.database as DatabaseApi)
   void repository.initialize()
 
-  const emitRefresh = () => {
-    const eventsApi = (context as ExtensionContext & { events?: EventsApi }).events
+  const eventsApi = (context as ExtensionContext & { events?: EventsApi }).events
+  const emitEvent = (name: string) => {
     if (!eventsApi) return
-    void eventsApi.emit('work.todos.updated', {
-      at: new Date().toISOString(),
-    })
+    void eventsApi.emit(name, { at: new Date().toISOString() })
   }
+
+  const emitTodoRefresh = () => emitEvent('work.todos.updated')
+  const emitProjectRefresh = () => emitEvent('work.projects.updated')
+  const emitSettingsRefresh = () => emitEvent('work.settings.updated')
 
   const disposables = [
     context.tools!.register(createPanelListTool(repository)),
-    context.tools!.register(createToggleGroupTool(repository, emitRefresh)),
-    context.tools!.register(createToggleSubItemTool(repository, emitRefresh)),
-    context.tools!.register(createEditTodoTool(repository, emitRefresh)),
+    context.tools!.register(createToggleGroupTool(repository, emitTodoRefresh)),
+    context.tools!.register(createToggleSubItemTool(repository, emitTodoRefresh)),
+    context.tools!.register(createEditTodoTool(repository, emitTodoRefresh)),
+
+    context.tools!.register(createListProjectsTool(repository)),
+    context.tools!.register(createGetProjectTool(repository)),
+    context.tools!.register(createUpsertProjectTool(repository, emitProjectRefresh)),
+    context.tools!.register(createDeleteProjectTool(repository, emitProjectRefresh)),
+
+    context.tools!.register(createListTodosTool(repository)),
+    context.tools!.register(createGetTodoTool(repository)),
+    context.tools!.register(createUpsertTodoTool(repository, emitTodoRefresh)),
+    context.tools!.register(createDeleteTodoTool(repository, emitTodoRefresh)),
+
+    context.tools!.register(createAddCommentTool(repository, emitTodoRefresh)),
+    context.tools!.register(createDeleteCommentTool(repository, emitTodoRefresh)),
+
+    context.tools!.register(createAddSubItemTool(repository, emitTodoRefresh)),
+    context.tools!.register(createDeleteSubItemTool(repository, emitTodoRefresh)),
+
+    context.tools!.register(createGetSettingsTool(repository)),
+    context.tools!.register(createUpdateSettingsTool(repository, emitSettingsRefresh)),
   ]
 
   context.log.info('Work Manager tools registered', {
-    tools: ['work_panel_list', 'work_panel_toggle_group', 'work_subitem_toggle', 'work_todo_edit'],
+    tools: [
+      'work_panel_list',
+      'work_panel_toggle_group',
+      'work_subitem_toggle',
+      'work_todo_edit',
+      'work_projects_list',
+      'work_projects_get',
+      'work_projects_upsert',
+      'work_projects_delete',
+      'work_todos_list',
+      'work_todos_get',
+      'work_todos_upsert',
+      'work_todos_delete',
+      'work_comments_add',
+      'work_comments_delete',
+      'work_subitems_add',
+      'work_subitems_delete',
+      'work_settings_get',
+      'work_settings_update',
+    ],
   })
 
   return {
