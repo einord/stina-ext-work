@@ -59,7 +59,7 @@ export class WorkRepository {
     if (this.initialized) return
 
     await this.db.execute(
-      `CREATE TABLE IF NOT EXISTS ext_work_projects (
+      `CREATE TABLE IF NOT EXISTS ext_work_manager_projects (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT,
@@ -69,7 +69,7 @@ export class WorkRepository {
     )
 
     await this.db.execute(
-      `CREATE TABLE IF NOT EXISTS ext_work_group_state (
+      `CREATE TABLE IF NOT EXISTS ext_work_manager_group_state (
         group_id TEXT PRIMARY KEY,
         collapsed INTEGER NOT NULL DEFAULT 0,
         updated_at TEXT NOT NULL
@@ -77,7 +77,7 @@ export class WorkRepository {
     )
 
     await this.db.execute(
-      `CREATE TABLE IF NOT EXISTS ext_work_todos (
+      `CREATE TABLE IF NOT EXISTS ext_work_manager_todos (
         id TEXT PRIMARY KEY,
         project_id TEXT,
         title TEXT NOT NULL,
@@ -95,7 +95,7 @@ export class WorkRepository {
     )
 
     await this.db.execute(
-      `CREATE TABLE IF NOT EXISTS ext_work_subitems (
+      `CREATE TABLE IF NOT EXISTS ext_work_manager_subitems (
         id TEXT PRIMARY KEY,
         todo_id TEXT NOT NULL,
         text TEXT NOT NULL,
@@ -107,7 +107,7 @@ export class WorkRepository {
     )
 
     await this.db.execute(
-      `CREATE TABLE IF NOT EXISTS ext_work_comments (
+      `CREATE TABLE IF NOT EXISTS ext_work_manager_comments (
         id TEXT PRIMARY KEY,
         todo_id TEXT NOT NULL,
         text TEXT NOT NULL,
@@ -116,7 +116,7 @@ export class WorkRepository {
     )
 
     await this.db.execute(
-      `CREATE TABLE IF NOT EXISTS ext_work_settings (
+      `CREATE TABLE IF NOT EXISTS ext_work_manager_settings (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
         updated_at TEXT NOT NULL
@@ -124,23 +124,23 @@ export class WorkRepository {
     )
 
     await this.db.execute(
-      `CREATE INDEX IF NOT EXISTS ext_work_todos_due_idx
-       ON ext_work_todos(due_at)`
+      `CREATE INDEX IF NOT EXISTS ext_work_manager_todos_due_idx
+       ON ext_work_manager_todos(due_at)`
     )
 
     await this.db.execute(
-      `CREATE INDEX IF NOT EXISTS ext_work_todos_project_idx
-       ON ext_work_todos(project_id)`
+      `CREATE INDEX IF NOT EXISTS ext_work_manager_todos_project_idx
+       ON ext_work_manager_todos(project_id)`
     )
 
     await this.db.execute(
-      `CREATE INDEX IF NOT EXISTS ext_work_subitems_todo_idx
-       ON ext_work_subitems(todo_id)`
+      `CREATE INDEX IF NOT EXISTS ext_work_manager_subitems_todo_idx
+       ON ext_work_manager_subitems(todo_id)`
     )
 
     await this.db.execute(
-      `CREATE INDEX IF NOT EXISTS ext_work_comments_todo_idx
-       ON ext_work_comments(todo_id)`
+      `CREATE INDEX IF NOT EXISTS ext_work_manager_comments_todo_idx
+       ON ext_work_manager_comments(todo_id)`
     )
 
     this.initialized = true
@@ -153,7 +153,7 @@ export class WorkRepository {
     const params: unknown[] = []
 
     let sql = `SELECT id, name, description, created_at, updated_at
-       FROM ext_work_projects`
+       FROM ext_work_manager_projects`
 
     if (query) {
       sql += ` WHERE LOWER(name) LIKE ? OR LOWER(description) LIKE ?`
@@ -192,7 +192,7 @@ export class WorkRepository {
       updated_at: string
     }>(
       `SELECT id, name, description, created_at, updated_at
-       FROM ext_work_projects
+       FROM ext_work_manager_projects
        WHERE id = ?`,
       [id]
     )
@@ -220,7 +220,7 @@ export class WorkRepository {
       const name = input.name ?? existing.name
       const description = input.description ?? existing.description ?? null
       await this.db.execute(
-        `UPDATE ext_work_projects
+        `UPDATE ext_work_manager_projects
          SET name = ?, description = ?, updated_at = ?
          WHERE id = ?`,
         [name, description, now, projectId]
@@ -239,7 +239,7 @@ export class WorkRepository {
     }
 
     await this.db.execute(
-      `INSERT INTO ext_work_projects (id, name, description, created_at, updated_at)
+      `INSERT INTO ext_work_manager_projects (id, name, description, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?)`,
       [projectId, input.name, input.description ?? null, now, now]
     )
@@ -257,18 +257,18 @@ export class WorkRepository {
     await this.initialize()
 
     const rows = await this.db.execute<{ id: string }>(
-      `SELECT id FROM ext_work_projects WHERE id = ?`,
+      `SELECT id FROM ext_work_manager_projects WHERE id = ?`,
       [id]
     )
 
     if (rows.length === 0) return false
 
     await this.db.execute(
-      `UPDATE ext_work_todos SET project_id = NULL WHERE project_id = ?`,
+      `UPDATE ext_work_manager_todos SET project_id = NULL WHERE project_id = ?`,
       [id]
     )
 
-    await this.db.execute(`DELETE FROM ext_work_projects WHERE id = ?`, [id])
+    await this.db.execute(`DELETE FROM ext_work_manager_projects WHERE id = ?`, [id])
     return true
   }
 
@@ -297,7 +297,7 @@ export class WorkRepository {
     }
 
     let sql = `SELECT id, project_id, title, description, icon, status, due_at, date, time, all_day, reminder_minutes, created_at, updated_at
-       FROM ext_work_todos`
+       FROM ext_work_manager_todos`
 
     if (conditions.length > 0) {
       sql += ` WHERE ${conditions.join(' AND ')}`
@@ -358,7 +358,7 @@ export class WorkRepository {
       updated_at: string
     }>(
       `SELECT id, project_id, title, description, icon, status, due_at, date, time, all_day, reminder_minutes, created_at, updated_at
-       FROM ext_work_todos
+       FROM ext_work_manager_todos
        WHERE id = ?`,
       [id]
     )
@@ -418,7 +418,7 @@ export class WorkRepository {
       const derived = deriveDateTime(merged.dueAt, merged.date, merged.time, merged.allDay)
 
       await this.db.execute(
-        `UPDATE ext_work_todos
+        `UPDATE ext_work_manager_todos
          SET project_id = ?, title = ?, description = ?, icon = ?, status = ?, due_at = ?, date = ?, time = ?, all_day = ?, reminder_minutes = ?, updated_at = ?
          WHERE id = ?`,
         [
@@ -457,7 +457,7 @@ export class WorkRepository {
     }
 
     await this.db.execute(
-      `INSERT INTO ext_work_todos (
+      `INSERT INTO ext_work_manager_todos (
         id, project_id, title, description, icon, status, due_at, date, time, all_day, reminder_minutes, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -498,15 +498,15 @@ export class WorkRepository {
     await this.initialize()
 
     const rows = await this.db.execute<{ id: string }>(
-      `SELECT id FROM ext_work_todos WHERE id = ?`,
+      `SELECT id FROM ext_work_manager_todos WHERE id = ?`,
       [id]
     )
 
     if (rows.length === 0) return false
 
-    await this.db.execute(`DELETE FROM ext_work_comments WHERE todo_id = ?`, [id])
-    await this.db.execute(`DELETE FROM ext_work_subitems WHERE todo_id = ?`, [id])
-    await this.db.execute(`DELETE FROM ext_work_todos WHERE id = ?`, [id])
+    await this.db.execute(`DELETE FROM ext_work_manager_comments WHERE todo_id = ?`, [id])
+    await this.db.execute(`DELETE FROM ext_work_manager_subitems WHERE todo_id = ?`, [id])
+    await this.db.execute(`DELETE FROM ext_work_manager_todos WHERE id = ?`, [id])
 
     return true
   }
@@ -523,7 +523,7 @@ export class WorkRepository {
     const sortOrder = input.sortOrder ?? 0
 
     await this.db.execute(
-      `INSERT INTO ext_work_subitems (id, todo_id, text, completed_at, sort_order, created_at, updated_at)
+      `INSERT INTO ext_work_manager_subitems (id, todo_id, text, completed_at, sort_order, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [subItemId, input.todoId, input.text, null, sortOrder, now, now]
     )
@@ -543,14 +543,14 @@ export class WorkRepository {
     await this.initialize()
 
     const rows = await this.db.execute<{ id: string }>(
-      `SELECT id FROM ext_work_subitems WHERE id = ? AND todo_id = ?`,
+      `SELECT id FROM ext_work_manager_subitems WHERE id = ? AND todo_id = ?`,
       [subItemId, todoId]
     )
 
     if (rows.length === 0) return false
 
     await this.db.execute(
-      `DELETE FROM ext_work_subitems WHERE id = ? AND todo_id = ?`,
+      `DELETE FROM ext_work_manager_subitems WHERE id = ? AND todo_id = ?`,
       [subItemId, todoId]
     )
 
@@ -570,7 +570,7 @@ export class WorkRepository {
       updated_at: string
     }>(
       `SELECT id, todo_id, text, completed_at, sort_order, created_at, updated_at
-       FROM ext_work_subitems
+       FROM ext_work_manager_subitems
        WHERE todo_id = ?
        ORDER BY sort_order ASC, created_at ASC`,
       [todoId]
@@ -591,7 +591,7 @@ export class WorkRepository {
     await this.initialize()
 
     const existing = await this.db.execute<{ completed_at: string | null }>(
-      `SELECT completed_at FROM ext_work_subitems WHERE id = ? AND todo_id = ?`,
+      `SELECT completed_at FROM ext_work_manager_subitems WHERE id = ? AND todo_id = ?`,
       [subItemId, todoId]
     )
 
@@ -601,7 +601,7 @@ export class WorkRepository {
     const nextValue = completedAt ? null : new Date().toISOString()
 
     await this.db.execute(
-      `UPDATE ext_work_subitems SET completed_at = ?, updated_at = ? WHERE id = ? AND todo_id = ?`,
+      `UPDATE ext_work_manager_subitems SET completed_at = ?, updated_at = ? WHERE id = ? AND todo_id = ?`,
       [nextValue, new Date().toISOString(), subItemId, todoId]
     )
 
@@ -619,7 +619,7 @@ export class WorkRepository {
     const commentId = generateId('comment')
 
     await this.db.execute(
-      `INSERT INTO ext_work_comments (id, todo_id, text, created_at)
+      `INSERT INTO ext_work_manager_comments (id, todo_id, text, created_at)
        VALUES (?, ?, ?, ?)`,
       [commentId, input.todoId, input.text, createdAt]
     )
@@ -636,14 +636,14 @@ export class WorkRepository {
     await this.initialize()
 
     const rows = await this.db.execute<{ id: string }>(
-      `SELECT id FROM ext_work_comments WHERE id = ? AND todo_id = ?`,
+      `SELECT id FROM ext_work_manager_comments WHERE id = ? AND todo_id = ?`,
       [commentId, todoId]
     )
 
     if (rows.length === 0) return false
 
     await this.db.execute(
-      `DELETE FROM ext_work_comments WHERE id = ? AND todo_id = ?`,
+      `DELETE FROM ext_work_manager_comments WHERE id = ? AND todo_id = ?`,
       [commentId, todoId]
     )
 
@@ -660,7 +660,7 @@ export class WorkRepository {
       created_at: string
     }>(
       `SELECT id, todo_id, text, created_at
-       FROM ext_work_comments
+       FROM ext_work_manager_comments
        WHERE todo_id = ?
        ORDER BY created_at ASC`,
       [todoId]
@@ -678,7 +678,7 @@ export class WorkRepository {
     await this.initialize()
 
     const rows = await this.db.execute<{ key: string; value: string }>(
-      `SELECT key, value FROM ext_work_settings`
+      `SELECT key, value FROM ext_work_manager_settings`
     )
 
     const settings: WorkSettings = { ...DEFAULT_SETTINGS }
@@ -718,7 +718,7 @@ export class WorkRepository {
 
     for (const [key, value] of entries) {
       await this.db.execute(
-        `INSERT INTO ext_work_settings (key, value, updated_at)
+        `INSERT INTO ext_work_manager_settings (key, value, updated_at)
          VALUES (?, ?, ?)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
         [key, value, now]
@@ -737,12 +737,12 @@ export class WorkRepository {
       description: string | null
     }>(
       `SELECT id, name, description
-       FROM ext_work_projects
+       FROM ext_work_manager_projects
        ORDER BY name ASC`
     )
 
     const groupStates = await this.db.execute<{ group_id: string; collapsed: number }>(
-      `SELECT group_id, collapsed FROM ext_work_group_state`
+      `SELECT group_id, collapsed FROM ext_work_manager_group_state`
     )
 
     const todos = await this.db.execute<{
@@ -757,7 +757,7 @@ export class WorkRepository {
       time: string
     }>(
       `SELECT id, project_id, title, description, icon, status, due_at, date, time
-       FROM ext_work_todos
+       FROM ext_work_manager_todos
        ORDER BY due_at ASC`
     )
 
@@ -770,7 +770,7 @@ export class WorkRepository {
       created_at: string
     }>(
       `SELECT id, todo_id, text, completed_at, sort_order, created_at
-       FROM ext_work_subitems
+       FROM ext_work_manager_subitems
        ORDER BY sort_order ASC, created_at ASC`
     )
 
@@ -781,7 +781,7 @@ export class WorkRepository {
       created_at: string
     }>(
       `SELECT id, todo_id, text, created_at
-       FROM ext_work_comments
+       FROM ext_work_manager_comments
        ORDER BY created_at ASC`
     )
 
@@ -873,7 +873,7 @@ export class WorkRepository {
 
     if (groupId !== NO_PROJECT_GROUP) {
       const project = await this.db.execute<{ id: string }>(
-        `SELECT id FROM ext_work_projects WHERE id = ?`,
+        `SELECT id FROM ext_work_manager_projects WHERE id = ?`,
         [groupId]
       )
       if (project.length === 0) return false
@@ -881,7 +881,7 @@ export class WorkRepository {
 
     const now = new Date().toISOString()
     await this.db.execute(
-      `INSERT INTO ext_work_group_state (group_id, collapsed, updated_at)
+      `INSERT INTO ext_work_manager_group_state (group_id, collapsed, updated_at)
        VALUES (?, ?, ?)
        ON CONFLICT(group_id) DO UPDATE SET collapsed = excluded.collapsed, updated_at = excluded.updated_at`,
       [groupId, collapsed ? 1 : 0, now]
@@ -893,7 +893,7 @@ export class WorkRepository {
   async hasTodo(id: string): Promise<boolean> {
     await this.initialize()
     const rows = await this.db.execute<{ id: string }>(
-      `SELECT id FROM ext_work_todos WHERE id = ?`,
+      `SELECT id FROM ext_work_manager_todos WHERE id = ?`,
       [id]
     )
     return rows.length > 0

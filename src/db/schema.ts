@@ -1,6 +1,6 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
-export const workProjects = sqliteTable('ext_work_projects', {
+export const workProjects = sqliteTable('ext_work_manager_projects', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   description: text('description'),
@@ -8,13 +8,13 @@ export const workProjects = sqliteTable('ext_work_projects', {
   updatedAt: text('updated_at').notNull(),
 })
 
-export const workGroupState = sqliteTable('ext_work_group_state', {
+export const workGroupState = sqliteTable('ext_work_manager_group_state', {
   groupId: text('group_id').primaryKey(),
   collapsed: integer('collapsed', { mode: 'boolean' }).notNull().default(false),
   updatedAt: text('updated_at').notNull(),
 })
 
-export const workTodos = sqliteTable('ext_work_todos', {
+export const workTodos = sqliteTable('ext_work_manager_todos', {
   id: text('id').primaryKey(),
   projectId: text('project_id'),
   title: text('title').notNull(),
@@ -30,7 +30,7 @@ export const workTodos = sqliteTable('ext_work_todos', {
   updatedAt: text('updated_at').notNull(),
 })
 
-export const workSubItems = sqliteTable('ext_work_subitems', {
+export const workSubItems = sqliteTable('ext_work_manager_subitems', {
   id: text('id').primaryKey(),
   todoId: text('todo_id').notNull(),
   text: text('text').notNull(),
@@ -40,14 +40,14 @@ export const workSubItems = sqliteTable('ext_work_subitems', {
   updatedAt: text('updated_at').notNull(),
 })
 
-export const workComments = sqliteTable('ext_work_comments', {
+export const workComments = sqliteTable('ext_work_manager_comments', {
   id: text('id').primaryKey(),
   todoId: text('todo_id').notNull(),
   text: text('text').notNull(),
   createdAt: text('created_at').notNull(),
 })
 
-export const workSettings = sqliteTable('ext_work_settings', {
+export const workSettings = sqliteTable('ext_work_manager_settings', {
   key: text('key').primaryKey(),
   value: text('value').notNull(),
   updatedAt: text('updated_at').notNull(),
