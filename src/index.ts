@@ -73,9 +73,10 @@ function activate(context: ExtensionContext): Disposable {
     void eventsApi.emit(name, { at: new Date().toISOString() })
   }
 
-  const emitTodoRefresh = () => emitEvent('work.todos.updated')
-  const emitProjectRefresh = () => emitEvent('work.projects.updated')
-  const emitSettingsRefresh = () => emitEvent('work.settings.updated')
+  const emitTodoRefresh = () => emitEvent('work.todo.changed')
+  const emitProjectRefresh = () => emitEvent('work.project.changed')
+  const emitPanelStateRefresh = () => emitEvent('work.panel.state.changed')
+  const emitSettingsRefresh = () => emitEvent('work.settings.changed')
 
   const scheduler = (context as ExtensionContext & { scheduler?: SchedulerAPI }).scheduler
   const chat = (context as ExtensionContext & { chat?: ChatAPI }).chat
@@ -183,7 +184,7 @@ function activate(context: ExtensionContext): Disposable {
 
   const disposables = [
     context.tools!.register(createPanelListTool(repository)),
-    context.tools!.register(createToggleGroupTool(repository, emitTodoRefresh)),
+    context.tools!.register(createToggleGroupTool(repository, emitPanelStateRefresh)),
     context.tools!.register(createToggleSubItemTool(repository, emitTodoRefresh)),
     context.tools!.register(createEditTodoTool(repository, emitTodoRefresh)),
 
