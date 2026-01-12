@@ -33,7 +33,7 @@ const normalizeNullableString = (value: unknown): string | null | undefined => {
   return null
 }
 
-export function createListSettingsTool(repository: WorkRepository): Tool {
+export function createListSettingsTool(_repository: WorkRepository): Tool {
   return {
     id: 'work_settings_list',
     name: 'List Work Settings',
