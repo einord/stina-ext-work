@@ -4,10 +4,6 @@
 
 import { initializeExtension, type ExtensionContext, type Disposable } from '@stina/extension-api/runtime'
 import {
-  createPanelListTool,
-  createToggleGroupTool,
-  createToggleSubItemTool,
-  createEditTodoTool,
   createListProjectsTool,
   createGetProjectTool,
   createUpsertProjectTool,
@@ -31,6 +27,13 @@ import type { WorkTodo } from './types.js'
 
 type EventsApi = { emit: (name: string, payload?: Record<string, unknown>) => Promise<void> }
 
+type ActionsApi = {
+  register: (action: {
+    id: string
+    execute: (params: Record<string, unknown>) => Promise<{ success: boolean; data?: unknown; error?: string }>
+  }) => { dispose: () => void }
+}
+
 type DatabaseApi = {
   execute: <T = unknown>(sql: string, params?: unknown[]) => Promise<T[]>
 }
@@ -53,7 +56,12 @@ type ChatAPI = {
 }
 
 type UserApi = {
-  getProfile: () => Promise<{ firstName?: string; nickname?: string }>
+  getProfile: () => Promise<{
+    firstName?: string
+    nickname?: string
+    language?: string
+    timezone?: string
+  }>
 }
 
 function activate(context: ExtensionContext): Disposable {
@@ -75,23 +83,31 @@ function activate(context: ExtensionContext): Disposable {
 
   const emitTodoRefresh = () => emitEvent('work.todo.changed')
   const emitProjectRefresh = () => emitEvent('work.project.changed')
-  const emitPanelStateRefresh = () => emitEvent('work.panel.state.changed')
   const emitSettingsRefresh = () => emitEvent('work.settings.changed')
 
   const scheduler = (context as ExtensionContext & { scheduler?: SchedulerAPI }).scheduler
   const chat = (context as ExtensionContext & { chat?: ChatAPI }).chat
   const userApi = (context as ExtensionContext & { user?: UserApi }).user
+  const actionsApi = (context as ExtensionContext & { actions?: ActionsApi }).actions
 
-  const resolveUserName = async (): Promise<string | undefined> => {
-    if (!userApi) return undefined
+  const getReminderJobId = (todoId: string): string => `todo.reminder:${todoId}`
+
+  const resolveUserProfile = async (): Promise<{
+    name?: string
+    language?: string | null
+  }> => {
+    if (!userApi) return {}
     try {
       const profile = await userApi.getProfile()
-      return profile.nickname ?? profile.firstName
+      return {
+        name: profile.nickname ?? profile.firstName,
+        language: profile.language ?? null,
+      }
     } catch (error) {
       context.log.warn('Failed to load user profile', {
         error: error instanceof Error ? error.message : String(error),
       })
-      return undefined
+      return {}
     }
   }
 
@@ -99,19 +115,19 @@ function activate(context: ExtensionContext): Disposable {
     if (!scheduler) return
     try {
       if (!isTodoActive(todo)) {
-        await scheduler.cancel(todo.id)
+        await scheduler.cancel(getReminderJobId(todo.id))
         return
       }
 
       const settings = await repository.getSettings()
       const reminderAt = resolveReminderAt(todo, settings)
       if (!reminderAt) {
-        await scheduler.cancel(todo.id)
+        await scheduler.cancel(getReminderJobId(todo.id))
         return
       }
 
       await scheduler.schedule({
-        id: todo.id,
+        id: getReminderJobId(todo.id),
         schedule: { type: 'at', at: reminderAt },
         payload: { todoId: todo.id },
         misfire: 'run_once',
@@ -127,7 +143,7 @@ function activate(context: ExtensionContext): Disposable {
   const cancelTodo = async (todoId: string): Promise<void> => {
     if (!scheduler) return
     try {
-      await scheduler.cancel(todoId)
+      await scheduler.cancel(getReminderJobId(todoId))
     } catch (error) {
       context.log.warn('Failed to cancel todo reminder', {
         id: todoId,
@@ -171,8 +187,11 @@ function activate(context: ExtensionContext): Disposable {
         if (!todo || !isTodoActive(todo)) return
 
         const settings = await repository.getSettings()
-        const userName = await resolveUserName()
-        const message = buildInstructionMessage(todo, payload, settings, userName)
+        const profile = await resolveUserProfile()
+        const message = buildInstructionMessage(todo, payload, settings, {
+          userName: profile?.name,
+          userLanguage: profile?.language,
+        })
         await chat.appendInstruction({ text: message })
       } catch (error) {
         context.log.warn('Failed to handle scheduler fire', {
@@ -182,11 +201,28 @@ function activate(context: ExtensionContext): Disposable {
     })()
   })
 
+  // Register UI actions for component-based panels
+  const actionDisposables = actionsApi
+    ? [
+        actionsApi.register({
+          id: 'getGroups',
+          async execute() {
+            try {
+              const groups = await repository.listPanelGroups()
+              return { success: true, data: groups }
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+              }
+            }
+          },
+        }),
+      ]
+    : []
+
   const disposables = [
-    context.tools!.register(createPanelListTool(repository)),
-    context.tools!.register(createToggleGroupTool(repository, emitPanelStateRefresh)),
-    context.tools!.register(createToggleSubItemTool(repository, emitTodoRefresh)),
-    context.tools!.register(createEditTodoTool(repository, emitTodoRefresh)),
+    ...actionDisposables,
 
     context.tools!.register(createListProjectsTool(repository)),
     context.tools!.register(createGetProjectTool(repository)),
@@ -225,12 +261,8 @@ function activate(context: ExtensionContext): Disposable {
     ...(schedulerDisposable ? [schedulerDisposable] : []),
   ]
 
-  context.log.info('Work Manager tools registered', {
+  context.log.info('Work Manager registered', {
     tools: [
-      'work_panel_list',
-      'work_panel_toggle_group',
-      'work_subitem_toggle',
-      'work_todo_edit',
       'work_projects_list',
       'work_projects_get',
       'work_projects_upsert',
@@ -243,9 +275,11 @@ function activate(context: ExtensionContext): Disposable {
       'work_comments_delete',
       'work_subitems_add',
       'work_subitems_delete',
+      'work_settings_list',
       'work_settings_get',
       'work_settings_update',
     ],
+    actions: actionsApi ? ['getGroups'] : [],
   })
 
   void scheduleAllTodos()

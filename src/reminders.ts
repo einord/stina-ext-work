@@ -8,11 +8,17 @@ export interface SchedulerFirePayload {
   delayMs: number
 }
 
-const resolveLocale = (settings: WorkSettings): 'sv' | 'en' => {
+const resolveLocale = (settings: WorkSettings, userLanguage?: string | null): 'sv' | 'en' => {
   const stored = settings.reminderLocale?.toLowerCase()
   if (stored && stored !== 'auto') {
     if (stored.startsWith('sv')) return 'sv'
     if (stored.startsWith('en')) return 'en'
+  }
+
+  const userLocale = userLanguage?.toLowerCase()
+  if (userLocale) {
+    if (userLocale.startsWith('sv')) return 'sv'
+    if (userLocale.startsWith('en')) return 'en'
   }
 
   const envLocale =
@@ -35,9 +41,12 @@ const extractOffset = (iso: string): string => {
   return match ? match[1] : 'Z'
 }
 
-const withSeconds = (time: string): string => {
-  if (time.length === 5) return `${time}:00`
-  return time
+const normalizeAllDayTime = (time: string): string | null => {
+  const trimmed = time.trim()
+  if (!trimmed) return null
+  if (/^\d{2}:\d{2}$/.test(trimmed)) return `${trimmed}:00`
+  if (/^\d{2}:\d{2}:\d{2}$/.test(trimmed)) return trimmed
+  return null
 }
 
 export const isTodoActive = (todo: WorkTodo): boolean => {
@@ -55,10 +64,12 @@ export const resolveReminderAt = (
       ? todo.reminderMinutes
       : settings.defaultReminderMinutes
 
-  if (todo.allDay && settings.allDayReminderTime) {
+  if (todo.allDay) {
+    if (!settings.allDayReminderTime) return null
     const datePart = todo.dueAt.slice(0, 10)
     const offset = extractOffset(todo.dueAt)
-    const timePart = withSeconds(settings.allDayReminderTime)
+    const timePart = normalizeAllDayTime(settings.allDayReminderTime)
+    if (!timePart) return null
     return `${datePart}T${timePart}${offset}`
   }
 
@@ -72,16 +83,21 @@ export const resolveReminderAt = (
   return reminderAt.toISOString()
 }
 
+export interface InstructionContext {
+  userName?: string
+  userLanguage?: string | null
+}
+
 export const buildInstructionMessage = (
   todo: WorkTodo,
   firePayload: SchedulerFirePayload,
   settings: WorkSettings,
-  userName?: string
+  context?: InstructionContext
 ): string => {
-  const locale = resolveLocale(settings)
+  const locale = resolveLocale(settings, context?.userLanguage)
   const delayMinutes = formatDelayMinutes(firePayload.delayMs)
   const todoJson = JSON.stringify(todo)
-  const name = userName?.trim()
+  const name = context?.userName?.trim()
 
   if (locale === 'sv') {
     return [

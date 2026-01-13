@@ -19,6 +19,7 @@
 
   "permissions": [
     "tools.register",
+    "actions.register",
     "panels.register",
     "events.emit",
     "database.own",
@@ -126,236 +127,59 @@
         "title": "Work",
         "icon": "check-list",
         "view": {
-          "kind": "grouped-list",
+          "kind": "component",
           "data": {
-            "toolId": "work_panel_list",
-            "resultKey": "groups",
-            "refreshEvents": [
-              "work.todo.changed",
-              "work.project.changed",
-              "work.panel.state.changed"
-            ]
-          },
-          "group": {
-            "idKey": "id",
-            "titleKey": "title",
-            "itemsKey": "items",
-            "collapsedKey": "collapsed",
-            "emptyLabel": "No todos"
-          },
-          "item": {
-            "idKey": "id",
-            "titleKey": "title",
-            "descriptionKey": "description",
-            "iconKey": "icon",
-            "statusKey": "status",
-            "dateKey": "date",
-            "timeKey": "time",
-            "commentCountKey": "commentCount",
-            "comments": {
-              "itemsKey": "comments",
-              "textKey": "text",
-              "idKey": "id",
-              "createdAtKey": "createdAt",
-              "inputPlaceholder": "Add comment",
-              "actions": {
-                "add": {
-                  "toolId": "work_comments_add",
-                  "params": {
-                    "todoId": { "ref": "item.id" },
-                    "text": { "ref": "state.commentText" }
-                  }
-                },
-                "delete": {
-                  "toolId": "work_comments_delete",
-                  "params": {
-                    "todoId": { "ref": "item.id" },
-                    "commentId": { "ref": "comment.id" }
-                  }
-                }
-              }
-            },
-            "subItems": {
-              "itemsKey": "subItems",
-              "idKey": "id",
-              "textKey": "text",
-              "completedAtKey": "completedAt",
-              "inputPlaceholder": "Add step",
-              "actions": {
-                "add": {
-                  "toolId": "work_subitems_add",
-                  "params": {
-                    "todoId": { "ref": "item.id" },
-                    "text": { "ref": "state.subItemText" }
-                  }
-                },
-                "delete": {
-                  "toolId": "work_subitems_delete",
-                  "params": {
-                    "todoId": { "ref": "item.id" },
-                    "subItemId": { "ref": "subItem.id" }
-                  }
-                }
-              }
+            "groups": {
+              "action": "getGroups",
+              "refreshOn": [
+                "work.todo.changed",
+                "work.project.changed"
+              ]
             }
           },
-          "actions": {
-            "toggleGroup": {
-              "toolId": "work_panel_toggle_group",
-              "params": {
-                "groupId": { "ref": "group.id" },
-                "collapsed": { "ref": "state.collapsed" }
-              }
-            },
-            "toggleSubItem": {
-              "toolId": "work_subitem_toggle",
-              "params": {
-                "todoId": { "ref": "item.id" },
-                "subItemId": { "ref": "subItem.id" }
-              }
-            },
-            "editItem": {
-              "toolId": "work_todo_edit",
-              "params": {
-                "id": { "ref": "item.id" }
-              }
-            }
-          },
-          "editor": {
-            "title": "Edit todo",
-            "createLabel": "New todo",
-            "getToolId": "work_todos_get",
-            "upsertToolId": "work_todos_upsert",
-            "deleteToolId": "work_todos_delete",
-            "fields": [
-              {
-                "id": "title",
-                "title": "Title",
-                "type": "string",
-                "validation": { "required": true }
-              },
-              {
-                "id": "description",
-                "title": "Description",
-                "type": "string"
-              },
-              {
-                "id": "icon",
-                "title": "Icon",
-                "type": "string",
-                "default": "check-list",
-                "validation": { "required": true }
-              },
-              {
-                "id": "status",
-                "title": "Status",
-                "type": "select",
-                "default": "not_started",
-                "options": [
-                  { "value": "not_started", "label": "Not started" },
-                  { "value": "in_progress", "label": "In progress" },
-                  { "value": "completed", "label": "Completed" },
-                  { "value": "cancelled", "label": "Cancelled" }
-                ]
-              },
-              {
-                "id": "projectId",
-                "title": "Project",
-                "type": "select",
-                "default": "",
-                "options": [
-                  { "value": "", "label": "No project" }
-                ],
-                "optionsToolId": "work_projects_list",
-                "optionsParams": { "limit": 200 },
-                "optionsMapping": {
-                  "itemsKey": "projects",
-                  "valueKey": "id",
-                  "labelKey": "name"
-                },
-                "createToolId": "work_projects_upsert",
-                "createLabel": "Create project",
-                "createFields": [
-                  {
-                    "id": "name",
-                    "title": "Name",
-                    "type": "string",
-                    "validation": { "required": true }
-                  },
-                  {
-                    "id": "description",
-                    "title": "Description",
-                    "type": "string"
+          "content": {
+            "component": "VerticalStack",
+            "gap": 1,
+            "children": {
+              "each": "$groups",
+              "as": "group",
+              "items": [
+                {
+                  "component": "Panel",
+                  "title": "$group.title",
+                  "icon": "folder-01",
+                  "content": {
+                    "component": "VerticalStack",
+                    "gap": 0.5,
+                    "children": {
+                      "each": "$group.items",
+                      "as": "todo",
+                      "items": [
+                        {
+                          "component": "HorizontalStack",
+                          "gap": 0.5,
+                          "children": [
+                            { "component": "Icon", "name": "$todo.icon" },
+                            {
+                              "component": "VerticalStack",
+                              "children": [
+                                { "component": "Label", "text": "$todo.title" },
+                                { "component": "Label", "text": "$todo.date" }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
                   }
-                ],
-                "createMapping": {
-                  "valueKey": "id"
                 }
-              },
-              {
-                "id": "dueAt",
-                "title": "Due at (ISO 8601)",
-                "type": "string",
-                "validation": { "required": true }
-              },
-              {
-                "id": "date",
-                "title": "Date (YYYY-MM-DD)",
-                "type": "string"
-              },
-              {
-                "id": "time",
-                "title": "Time (HH:MM)",
-                "type": "string"
-              },
-              {
-                "id": "allDay",
-                "title": "All day",
-                "type": "boolean",
-                "default": false
-              },
-              {
-                "id": "reminderMinutes",
-                "title": "Reminder minutes",
-                "type": "select",
-                "default": "",
-                "options": [
-                  { "value": "", "label": "Use default" },
-                  { "value": "null", "label": "No reminder" },
-                  { "value": "0", "label": "At time" },
-                  { "value": "5", "label": "5 minutes before" },
-                  { "value": "10", "label": "10 minutes before" },
-                  { "value": "15", "label": "15 minutes before" },
-                  { "value": "30", "label": "30 minutes before" },
-                  { "value": "60", "label": "1 hour before" }
-                ]
-              }
-            ]
+              ]
+            }
           }
         }
       }
     ],
     "tools": [
-      {
-        "id": "work_panel_list",
-        "name": "List Work Panel",
-        "description": "List todo groups for the work panel."
-      },
-      {
-        "id": "work_panel_toggle_group",
-        "name": "Toggle Work Group",
-        "description": "Toggle collapsed state for a work group."
-      },
-      {
-        "id": "work_subitem_toggle",
-        "name": "Toggle Work Subitem",
-        "description": "Toggle completion for a work todo subitem."
-      },
-      {
-        "id": "work_todo_edit",
-        "name": "Edit Work Todo",
-        "description": "Open or update work todo details."
-      },
       {
         "id": "work_projects_list",
         "name": "List Projects",
