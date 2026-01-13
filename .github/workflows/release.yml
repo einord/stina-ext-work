@@ -44,15 +44,23 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Extension version: $VERSION"
 
-      - name: Validate version consistency
+      - name: Sync version to package.json
         run: |
           MANIFEST_VERSION=$(jq -r '.version' manifest.json)
           PACKAGE_VERSION=$(jq -r '.version' package.json)
           if [ "$MANIFEST_VERSION" != "$PACKAGE_VERSION" ]; then
-            echo "Error: Version mismatch between manifest.json ($MANIFEST_VERSION) and package.json ($PACKAGE_VERSION)"
-            exit 1
+            echo "Updating package.json version from $PACKAGE_VERSION to $MANIFEST_VERSION"
+            jq --arg v "$MANIFEST_VERSION" '.version = $v' package.json > package.json.tmp
+            mv package.json.tmp package.json
+            pnpm install --lockfile-only
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add package.json pnpm-lock.yaml
+            git commit -m "chore: sync package.json version to $MANIFEST_VERSION"
+            git push
+          else
+            echo "✓ Versions already in sync: $MANIFEST_VERSION"
           fi
-          echo "✓ Version is consistent across manifest.json and package.json: $MANIFEST_VERSION"
 
       - name: Check if release exists
         id: check_release
