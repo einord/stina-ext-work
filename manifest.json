@@ -132,50 +132,185 @@
           "data": {
             "groups": {
               "action": "getGroups",
-              "refreshOn": [
-                "work.todo.changed",
-                "work.project.changed"
-              ]
+              "refreshOn": ["work.todo.changed", "work.project.changed"]
+            },
+            "editingTodo": {
+              "action": "getEditingTodo",
+              "refreshOn": ["work.editModal.changed"]
             }
           },
           "content": {
             "component": "VerticalStack",
             "gap": 1,
-            "children": {
-              "each": "$groups",
-              "as": "group",
-              "items": [
-                {
-                  "component": "Panel",
-                  "title": "$group.title",
-                  "icon": "folder-01",
-                  "content": {
-                    "component": "VerticalStack",
-                    "gap": 0.5,
-                    "children": {
-                      "each": "$group.items",
-                      "as": "todo",
-                      "items": [
-                        {
-                          "component": "HorizontalStack",
-                          "gap": 0.5,
-                          "children": [
-                            { "component": "Icon", "name": "$todo.icon" },
+            "children": [
+              {
+                "component": "VerticalStack",
+                "gap": 1,
+                "children": {
+                  "each": "$groups",
+                  "as": "project",
+                  "items": [
+                    {
+                      "component": "Collapsible",
+                      "title": "$project.title",
+                      "icon": "folder-01",
+                      "defaultExpanded": false,
+                      "content": {
+                        "component": "VerticalStack",
+                        "gap": 0.5,
+                        "children": {
+                          "each": "$project.items",
+                          "as": "todo",
+                          "items": [
                             {
-                              "component": "VerticalStack",
-                              "children": [
-                                { "component": "Label", "text": "$todo.title" },
-                                { "component": "Label", "text": "$todo.date" }
-                              ]
+                              "component": "Collapsible",
+                              "title": "$todo.title",
+                              "description": "$todo.date",
+                              "icon": "$todo.icon",
+                              "defaultExpanded": false,
+                              "style": { "background": "transparent" },
+                              "content": {
+                                "component": "VerticalStack",
+                                "gap": 0.5,
+                                "children": [
+                                  {
+                                    "component": "Paragraph",
+                                    "text": "$todo.description"
+                                  },
+                                  {
+                                    "component": "HorizontalStack",
+                                    "style": { "justify-content": "flex-end" },
+                                    "children": [
+                                      {
+                                        "component": "IconButton",
+                                        "icon": "pencil-edit-01",
+                                        "tooltip": "Redigera",
+                                        "onClickAction": {
+                                          "action": "editTodo",
+                                          "params": { "todoId": "$todo.id" }
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "component": "VerticalStack",
+                                    "gap": 0.25,
+                                    "children": {
+                                      "each": "$todo.subItems",
+                                      "as": "subitem",
+                                      "items": [
+                                        {
+                                          "component": "Checkbox",
+                                          "label": "$subitem.text",
+                                          "checked": "$subitem.completedAt",
+                                          "strikethrough": true,
+                                          "onChangeAction": {
+                                            "action": "toggleSubitem",
+                                            "params": {
+                                              "todoId": "$todo.id",
+                                              "subitemId": "$subitem.id"
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "component": "VerticalStack",
+                                    "gap": 0.25,
+                                    "children": {
+                                      "each": "$todo.comments",
+                                      "as": "comment",
+                                      "items": [
+                                        {
+                                          "component": "Markdown",
+                                          "content": "$comment.text"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                ]
+                              }
                             }
                           ]
                         }
-                      ]
+                      }
                     }
-                  }
+                  ]
                 }
-              ]
-            }
+              },
+              {
+                "component": "Modal",
+                "title": "Redigera todo",
+                "open": "$editingTodo",
+                "onCloseAction": "closeEditModal",
+                "body": {
+                  "component": "VerticalStack",
+                  "gap": 1,
+                  "children": [
+                    {
+                      "component": "TextInput",
+                      "label": "Titel",
+                      "value": "$editingTodo.title",
+                      "onChangeAction": {
+                        "action": "updateEditField",
+                        "params": { "field": "title" }
+                      }
+                    },
+                    {
+                      "component": "TextInput",
+                      "label": "Beskrivning",
+                      "value": "$editingTodo.description",
+                      "onChangeAction": {
+                        "action": "updateEditField",
+                        "params": { "field": "description" }
+                      }
+                    },
+                    {
+                      "component": "Select",
+                      "label": "Status",
+                      "selectedValue": "$editingTodo.status",
+                      "options": [
+                        { "label": "Ej påbörjad", "value": "not_started" },
+                        { "label": "Pågående", "value": "in_progress" },
+                        { "label": "Klar", "value": "completed" },
+                        { "label": "Avbruten", "value": "cancelled" }
+                      ],
+                      "onChangeAction": {
+                        "action": "updateEditField",
+                        "params": { "field": "status" }
+                      }
+                    },
+                    {
+                      "component": "DateTimeInput",
+                      "label": "Tidpunkt",
+                      "value": "$editingTodo.dueAt",
+                      "onChangeAction": {
+                        "action": "updateEditField",
+                        "params": { "field": "dueAt" }
+                      }
+                    }
+                  ]
+                },
+                "footer": {
+                  "component": "HorizontalStack",
+                  "gap": 0.5,
+                  "style": { "justify-content": "flex-end" },
+                  "children": [
+                    {
+                      "component": "Button",
+                      "text": "Avbryt",
+                      "onClickAction": "closeEditModal"
+                    },
+                    {
+                      "component": "Button",
+                      "text": "Spara",
+                      "onClickAction": "saveEditTodo"
+                    }
+                  ]
+                }
+              }
+            ]
           }
         }
       }

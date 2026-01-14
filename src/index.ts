@@ -201,6 +201,17 @@ function activate(context: ExtensionContext): Disposable {
     })()
   })
 
+  // State for edit modal
+  let editingTodoId: string | null = null
+  let editingTodoData: {
+    title?: string
+    description?: string
+    status?: string
+    dueAt?: string
+  } = {}
+
+  const emitEditModalRefresh = () => emitEvent('work.editModal.changed')
+
   // Register UI actions for component-based panels
   const actionDisposables = actionsApi
     ? [
@@ -210,6 +221,132 @@ function activate(context: ExtensionContext): Disposable {
             try {
               const groups = await repository.listPanelGroups()
               return { success: true, data: groups }
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+              }
+            }
+          },
+        }),
+        actionsApi.register({
+          id: 'toggleSubitem',
+          async execute(params) {
+            try {
+              const todoId = params.todoId as string
+              const subitemId = params.subitemId as string
+              if (!todoId || !subitemId) {
+                return { success: false, error: 'Missing todoId or subitemId' }
+              }
+              const toggled = await repository.toggleSubItem(todoId, subitemId)
+              if (toggled) {
+                emitTodoRefresh()
+              }
+              return { success: toggled }
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+              }
+            }
+          },
+        }),
+        actionsApi.register({
+          id: 'getEditingTodo',
+          async execute() {
+            try {
+              if (!editingTodoId) {
+                return { success: true, data: null }
+              }
+              const todo = await repository.getTodo(editingTodoId)
+              if (!todo) {
+                return { success: true, data: null }
+              }
+              // Merge with edited data
+              return {
+                success: true,
+                data: {
+                  ...todo,
+                  title: editingTodoData.title ?? todo.title,
+                  description: editingTodoData.description ?? todo.description,
+                  status: editingTodoData.status ?? todo.status,
+                  dueAt: editingTodoData.dueAt ?? todo.dueAt,
+                },
+              }
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+              }
+            }
+          },
+        }),
+        actionsApi.register({
+          id: 'editTodo',
+          async execute(params) {
+            const todoId = params.todoId as string
+            if (!todoId) {
+              return { success: false, error: 'Missing todoId' }
+            }
+            editingTodoId = todoId
+            editingTodoData = {} // Reset edited data
+            emitEditModalRefresh()
+            return { success: true }
+          },
+        }),
+        actionsApi.register({
+          id: 'updateEditField',
+          async execute(params) {
+            const field = params.field as string
+            const value = params.value as string
+            if (field === 'title') {
+              editingTodoData.title = value
+            } else if (field === 'description') {
+              editingTodoData.description = value
+            } else if (field === 'status') {
+              editingTodoData.status = value
+            } else if (field === 'dueAt') {
+              editingTodoData.dueAt = value
+            }
+            emitEditModalRefresh()
+            return { success: true }
+          },
+        }),
+        actionsApi.register({
+          id: 'closeEditModal',
+          async execute() {
+            editingTodoId = null
+            editingTodoData = {}
+            emitEditModalRefresh()
+            return { success: true }
+          },
+        }),
+        actionsApi.register({
+          id: 'saveEditTodo',
+          async execute() {
+            try {
+              if (!editingTodoId) {
+                return { success: false, error: 'No todo being edited' }
+              }
+
+              // Get current todo to merge with edited data
+              const currentTodo = await repository.getTodo(editingTodoId)
+              if (!currentTodo) {
+                return { success: false, error: 'Todo not found' }
+              }
+
+              await repository.upsertTodo(editingTodoId, {
+                title: editingTodoData.title ?? currentTodo.title,
+                description: editingTodoData.description ?? currentTodo.description,
+                status: (editingTodoData.status ?? currentTodo.status) as import('./types.js').WorkTodoStatus,
+                dueAt: editingTodoData.dueAt ?? currentTodo.dueAt,
+              })
+
+              editingTodoId = null
+              editingTodoData = {}
+              emitEditModalRefresh()
+              emitTodoRefresh()
+              return { success: true }
             } catch (error) {
               return {
                 success: false,
@@ -279,7 +416,7 @@ function activate(context: ExtensionContext): Disposable {
       'work_settings_get',
       'work_settings_update',
     ],
-    actions: actionsApi ? ['getGroups'] : [],
+    actions: actionsApi ? ['getGroups', 'toggleSubitem', 'getEditingTodo', 'editTodo', 'updateEditField', 'closeEditModal', 'saveEditTodo'] : [],
   })
 
   void scheduleAllTodos()
