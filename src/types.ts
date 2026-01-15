@@ -54,6 +54,7 @@ export interface WorkTodo {
   time: string
   allDay: boolean
   reminderMinutes?: number | null
+  lastNotificationSentAt?: string | null
   createdAt: string
   updatedAt: string
   comments?: WorkComment[]

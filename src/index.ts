@@ -187,12 +187,28 @@ function activate(context: ExtensionContext): Disposable {
         if (!todo || !isTodoActive(todo)) return
 
         const settings = await repository.getSettings()
+
+        // Check if notification was already sent for this reminder
+        const reminderAt = resolveReminderAt(todo, settings)
+        if (reminderAt && todo.lastNotificationSentAt) {
+          const lastSent = new Date(todo.lastNotificationSentAt)
+          const reminderTime = new Date(reminderAt)
+          // Skip if notification was already sent for this reminder time (or later)
+          if (lastSent >= reminderTime) {
+            context.log.info('Skipping duplicate notification for todo', { todoId, reminderAt, lastSent: todo.lastNotificationSentAt })
+            return
+          }
+        }
+
         const profile = await resolveUserProfile()
         const message = buildInstructionMessage(todo, payload, settings, {
           userName: profile?.name,
           userLanguage: profile?.language,
         })
         await chat.appendInstruction({ text: message })
+
+        // Mark notification as sent
+        await repository.markTodoNotificationSent(todoId, new Date().toISOString())
       } catch (error) {
         context.log.warn('Failed to handle scheduler fire', {
           error: error instanceof Error ? error.message : String(error),

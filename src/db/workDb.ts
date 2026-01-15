@@ -85,6 +85,14 @@ export class WorkDb {
        ON ext_work_manager_todos(due_at)`
     )
 
+    // Migration: Add last_notification_sent_at column if it doesn't exist
+    await addColumnIfNotExists(
+      this.db,
+      'ext_work_manager_todos',
+      'last_notification_sent_at',
+      'TEXT'
+    )
+
     await this.db.execute(
       `CREATE INDEX IF NOT EXISTS ext_work_manager_todos_project_idx
        ON ext_work_manager_todos(project_id)`
@@ -107,6 +115,21 @@ export class WorkDb {
 
   async execute<T = unknown>(sql: string, params?: unknown[]): Promise<T[]> {
     return this.db.execute<T>(sql, params)
+  }
+}
+
+async function addColumnIfNotExists(
+  db: DatabaseAPI,
+  table: string,
+  column: string,
+  type: string
+): Promise<void> {
+  const columns = await db.execute<{ name: string }>(
+    `PRAGMA table_info(${table})`
+  )
+  const exists = columns.some((col) => col.name === column)
+  if (!exists) {
+    await db.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`)
   }
 }
 

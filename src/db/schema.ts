@@ -26,6 +26,7 @@ export const workTodos = sqliteTable('ext_work_manager_todos', {
   time: text('time').notNull(),
   allDay: integer('all_day', { mode: 'boolean' }).notNull().default(false),
   reminderMinutes: integer('reminder_minutes'),
+  lastNotificationSentAt: text('last_notification_sent_at'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 })

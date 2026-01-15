@@ -38,7 +38,7 @@ export class TodosRepository {
       params.push(status)
     }
 
-    let sql = `SELECT id, project_id, title, description, icon, status, due_at, date, time, all_day, reminder_minutes, created_at, updated_at
+    let sql = `SELECT id, project_id, title, description, icon, status, due_at, date, time, all_day, reminder_minutes, last_notification_sent_at, created_at, updated_at
        FROM ext_work_manager_todos`
 
     if (conditions.length > 0) {
@@ -60,6 +60,7 @@ export class TodosRepository {
       time: string
       all_day: number
       reminder_minutes: number | null
+      last_notification_sent_at: string | null
       created_at: string
       updated_at: string
     }>(sql, params)
@@ -76,6 +77,7 @@ export class TodosRepository {
       time: row.time,
       allDay: !!row.all_day,
       reminderMinutes: row.reminder_minutes,
+      lastNotificationSentAt: row.last_notification_sent_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }))
@@ -96,10 +98,11 @@ export class TodosRepository {
       time: string
       all_day: number
       reminder_minutes: number | null
+      last_notification_sent_at: string | null
       created_at: string
       updated_at: string
     }>(
-      `SELECT id, project_id, title, description, icon, status, due_at, date, time, all_day, reminder_minutes, created_at, updated_at
+      `SELECT id, project_id, title, description, icon, status, due_at, date, time, all_day, reminder_minutes, last_notification_sent_at, created_at, updated_at
        FROM ext_work_manager_todos
        WHERE id = ?`,
       [id]
@@ -125,6 +128,7 @@ export class TodosRepository {
       time: row.time,
       allDay: !!row.all_day,
       reminderMinutes: row.reminder_minutes,
+      lastNotificationSentAt: row.last_notification_sent_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       comments,
@@ -266,5 +270,17 @@ export class TodosRepository {
       [id]
     )
     return rows.length > 0
+  }
+
+  /**
+   * Marks a todo as having had its notification sent at the specified time.
+   * Used to prevent duplicate notifications after app restart.
+   */
+  async markNotificationSent(id: string, sentAt: string): Promise<void> {
+    await this.db.initialize()
+    await this.db.execute(
+      `UPDATE ext_work_manager_todos SET last_notification_sent_at = ? WHERE id = ?`,
+      [sentAt, id]
+    )
   }
 }

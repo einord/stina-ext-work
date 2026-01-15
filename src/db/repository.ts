@@ -80,6 +80,10 @@ export class WorkRepository {
     return this.todos.has(id)
   }
 
+  async markTodoNotificationSent(id: string, sentAt: string): Promise<void> {
+    return this.todos.markNotificationSent(id, sentAt)
+  }
+
   async addSubItem(input: WorkSubItemInput): Promise<WorkSubItem> {
     return this.subItems.add(input)
   }
