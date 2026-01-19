@@ -16,9 +16,6 @@ import {
   createDeleteCommentTool,
   createAddSubItemTool,
   createDeleteSubItemTool,
-  createListSettingsTool,
-  createGetSettingsTool,
-  createUpdateSettingsTool,
 } from './tools/index.js'
 import { WorkRepository } from './db/repository.js'
 import { buildInstructionMessage, isTodoActive, resolveReminderAt } from './reminders.js'
@@ -371,6 +368,61 @@ function activate(context: ExtensionContext): Disposable {
             }
           },
         }),
+        // Reminder settings actions for component-based tool settings view
+        actionsApi.register({
+          id: 'getReminderSettings',
+          async execute() {
+            try {
+              const settings = await repository.getSettings()
+              return { success: true, data: settings }
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+              }
+            }
+          },
+        }),
+        actionsApi.register({
+          id: 'updateReminderSetting',
+          async execute(params) {
+            try {
+              const field = params.field as string
+              const value = params.value as unknown
+
+              if (!field) {
+                return { success: false, error: 'Missing field parameter' }
+              }
+
+              // Normalize values based on field type
+              const normalizeValue = (
+                f: string,
+                v: unknown
+              ): number | string | null | undefined => {
+                if (v === undefined) return undefined
+                if (v === null || v === 'null' || v === '') return null
+                if (f === 'defaultReminderMinutes') {
+                  const num = typeof v === 'number' ? v : Number(v)
+                  return Number.isFinite(num) ? num : null
+                }
+                return typeof v === 'string' ? v : String(v)
+              }
+
+              const normalized = normalizeValue(field, value)
+              const update: Record<string, unknown> = { [field]: normalized }
+
+              const settings = await repository.updateSettings(update)
+              emitSettingsRefresh()
+              void scheduleAllTodos()
+              return { success: true, data: settings }
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+              }
+            }
+          },
+        }),
       ]
     : []
 
@@ -402,15 +454,6 @@ function activate(context: ExtensionContext): Disposable {
 
     context.tools!.register(createAddSubItemTool(repository, emitTodoRefresh)),
     context.tools!.register(createDeleteSubItemTool(repository, emitTodoRefresh)),
-
-    context.tools!.register(createListSettingsTool(repository)),
-    context.tools!.register(createGetSettingsTool(repository)),
-    context.tools!.register(
-      createUpdateSettingsTool(repository, () => {
-        emitSettingsRefresh()
-        void scheduleAllTodos()
-      })
-    ),
     ...(schedulerDisposable ? [schedulerDisposable] : []),
   ]
 
@@ -428,11 +471,8 @@ function activate(context: ExtensionContext): Disposable {
       'work_comments_delete',
       'work_subitems_add',
       'work_subitems_delete',
-      'work_settings_list',
-      'work_settings_get',
-      'work_settings_update',
     ],
-    actions: actionsApi ? ['getGroups', 'toggleSubitem', 'getEditingTodo', 'editTodo', 'updateEditField', 'closeEditModal', 'saveEditTodo'] : [],
+    actions: actionsApi ? ['getGroups', 'toggleSubitem', 'getEditingTodo', 'editTodo', 'updateEditField', 'closeEditModal', 'saveEditTodo', 'getReminderSettings', 'updateReminderSetting'] : [],
   })
 
   void scheduleAllTodos()

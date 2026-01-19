@@ -12,8 +12,5 @@ export {
 } from './todos.js'
 export { createAddCommentTool, createDeleteCommentTool } from './comments.js'
 export { createAddSubItemTool, createDeleteSubItemTool } from './subitems.js'
-export {
-  createListSettingsTool,
-  createGetSettingsTool,
-  createUpdateSettingsTool,
-} from './settings.js'
+// Settings tools are deprecated - settings are now managed via actions (getReminderSettings, updateReminderSetting)
+// for the component-based tool settings view
