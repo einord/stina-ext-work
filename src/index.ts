@@ -201,7 +201,7 @@ function activate(context: ExtensionContext): Disposable {
     })()
   })
 
-  // Register UI actions for component-based panels
+  // Register UI actions for component-based panels and settings
   const actionDisposables = actionsApi
     ? [
         actionsApi.register({
@@ -210,6 +210,57 @@ function activate(context: ExtensionContext): Disposable {
             try {
               const groups = await repository.listPanelGroups()
               return { success: true, data: groups }
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+              }
+            }
+          },
+        }),
+        actionsApi.register({
+          id: 'getSettings',
+          async execute() {
+            try {
+              const settings = await repository.getSettings()
+              // Convert values to strings for Select components
+              return {
+                success: true,
+                data: {
+                  defaultReminderMinutes: String(settings.defaultReminderMinutes),
+                  allDayReminderTime: settings.allDayReminderTime ?? '',
+                  reminderLocale: settings.reminderLocale ?? 'auto',
+                },
+              }
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+              }
+            }
+          },
+        }),
+        actionsApi.register({
+          id: 'updateSetting',
+          async execute(params: Record<string, unknown>) {
+            try {
+              const key = params.key as string
+              const value = params.value as string
+
+              const update: Record<string, unknown> = {}
+              if (key === 'defaultReminderMinutes') {
+                update[key] = value === 'null' ? null : parseInt(value, 10)
+              } else if (key === 'allDayReminderTime') {
+                update[key] = value || null
+              } else if (key === 'reminderLocale') {
+                update[key] = value === 'auto' ? null : value
+              }
+
+              await repository.updateSettings(update)
+              emitSettingsRefresh()
+              void scheduleAllTodos()
+
+              return { success: true }
             } catch (error) {
               return {
                 success: false,
@@ -279,7 +330,7 @@ function activate(context: ExtensionContext): Disposable {
       'work_settings_get',
       'work_settings_update',
     ],
-    actions: actionsApi ? ['getGroups'] : [],
+    actions: actionsApi ? ['getGroups', 'getSettings', 'updateSetting'] : [],
   })
 
   void scheduleAllTodos()

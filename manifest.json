@@ -2,7 +2,7 @@
   "$schema": "https://stina.app/schemas/extension-manifest.json",
   "id": "work-manager",
   "name": "Work Manager",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "Manage work todos and projects.",
   "type": "tools",
   "author": {
@@ -70,56 +70,63 @@
         "title": "Reminders",
         "description": "Default reminder behavior for todos.",
         "view": {
-          "kind": "list",
-          "listToolId": "work_settings_list",
-          "getToolId": "work_settings_get",
-          "upsertToolId": "work_settings_update",
-          "mapping": {
-            "itemsKey": "settings",
-            "countKey": "count",
-            "idKey": "id",
-            "labelKey": "label",
-            "descriptionKey": "description"
+          "kind": "component",
+          "data": {
+            "settings": {
+              "action": "getSettings",
+              "refreshOn": ["work.settings.changed"]
+            }
           },
-          "idParam": "id"
-        },
-        "fields": [
-          {
-            "id": "defaultReminderMinutes",
-            "title": "Default reminder",
-            "description": "Used when the user does not specify a reminder offset.",
-            "type": "select",
-            "default": "null",
-            "options": [
-              { "value": "null", "label": "No reminder" },
-              { "value": "0", "label": "At time" },
-              { "value": "1", "label": "1 minute before" },
-              { "value": "5", "label": "5 minutes before" },
-              { "value": "10", "label": "10 minutes before" },
-              { "value": "15", "label": "15 minutes before" },
-              { "value": "30", "label": "30 minutes before" },
-              { "value": "60", "label": "1 hour before" }
-            ]
-          },
-          {
-            "id": "allDayReminderTime",
-            "title": "All-day reminder time",
-            "description": "HH:MM (24h). Used for all-day todos.",
-            "type": "string"
-          },
-          {
-            "id": "reminderLocale",
-            "title": "Reminder language",
-            "description": "Language for reminder instructions to Stina.",
-            "type": "select",
-            "default": "auto",
-            "options": [
-              { "value": "auto", "label": "Auto" },
-              { "value": "sv", "label": "Swedish" },
-              { "value": "en", "label": "English" }
+          "content": {
+            "component": "VerticalStack",
+            "gap": 1,
+            "children": [
+              {
+                "component": "Select",
+                "label": "Default reminder",
+                "options": [
+                  { "label": "No reminder", "value": "null" },
+                  { "label": "At time", "value": "0" },
+                  { "label": "1 minute before", "value": "1" },
+                  { "label": "5 minutes before", "value": "5" },
+                  { "label": "10 minutes before", "value": "10" },
+                  { "label": "15 minutes before", "value": "15" },
+                  { "label": "30 minutes before", "value": "30" },
+                  { "label": "1 hour before", "value": "60" }
+                ],
+                "selectedValue": "$settings.defaultReminderMinutes",
+                "onChangeAction": {
+                  "action": "updateSetting",
+                  "params": { "key": "defaultReminderMinutes", "value": "$value" }
+                }
+              },
+              {
+                "component": "TextInput",
+                "label": "All-day reminder time (HH:MM)",
+                "placeholder": "09:00",
+                "value": "$settings.allDayReminderTime",
+                "onChangeAction": {
+                  "action": "updateSetting",
+                  "params": { "key": "allDayReminderTime", "value": "$value" }
+                }
+              },
+              {
+                "component": "Select",
+                "label": "Reminder language",
+                "options": [
+                  { "label": "Auto", "value": "auto" },
+                  { "label": "Swedish", "value": "sv" },
+                  { "label": "English", "value": "en" }
+                ],
+                "selectedValue": "$settings.reminderLocale",
+                "onChangeAction": {
+                  "action": "updateSetting",
+                  "params": { "key": "reminderLocale", "value": "$value" }
+                }
+              }
             ]
           }
-        ]
+        }
       }
     ],
     "panels": [
