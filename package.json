@@ -1,6 +1,6 @@
 {
   "name": "stina-ext-work",
-  "version": "0.0.26",
+  "version": "0.0.27",
   "description": "Work management extension for Stina",
   "type": "module",
   "main": "dist/index.js",
