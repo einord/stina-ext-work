@@ -105,8 +105,12 @@ export interface WorkTodoPanelItem {
   description: string
   icon: string
   status: WorkTodoStatus
+  statusLabel: string
+  statusVariant: 'default' | 'primary' | 'success' | 'warning' | 'danger'
   date: string
   time: string
+  dateTime: string
+  allDay: boolean
   commentCount: number
   comments: Array<{ id: string; text: string; createdAt: string }>
   subItems: Array<{ id: string; text: string; completedAt: string | null }>

@@ -3,6 +3,27 @@ import { NO_PROJECT_GROUP } from './constants.js'
 import { normalizeOptionalString } from './utils.js'
 import type { WorkDb } from './workDb.js'
 
+const STATUS_CONFIG: Record<
+  WorkTodoStatus,
+  { label: string; variant: 'default' | 'primary' | 'success' | 'warning' | 'danger' }
+> = {
+  not_started: { label: 'Not started', variant: 'default' },
+  in_progress: { label: 'In progress', variant: 'primary' },
+  completed: { label: 'Completed', variant: 'success' },
+  cancelled: { label: 'Cancelled', variant: 'danger' },
+}
+
+/**
+ * Formats date and time for display. Shows time only if not an all-day event.
+ */
+function formatDateTime(date: string, time: string, allDay: boolean): string {
+  if (allDay) {
+    return date
+  }
+  const timePart = time.substring(0, 5)
+  return `${date} ${timePart}`
+}
+
 export class PanelRepository {
   private readonly db: WorkDb
 
@@ -37,8 +58,9 @@ export class PanelRepository {
       due_at: string
       date: string
       time: string
+      all_day: number
     }>(
-      `SELECT id, project_id, title, description, icon, status, due_at, date, time
+      `SELECT id, project_id, title, description, icon, status, due_at, date, time, all_day
        FROM ext_work_manager_todos
        ORDER BY due_at ASC`
     )
@@ -123,14 +145,21 @@ export class PanelRepository {
       const todoComments = commentsByTodo.get(todo.id) ?? []
       const todoSubItems = subItemsByTodo.get(todo.id) ?? []
 
+      const allDay = !!todo.all_day
+      const statusConfig = STATUS_CONFIG[todo.status]
+
       group.items.push({
         id: todo.id,
         title: todo.title,
         description: todo.description ?? '',
         icon: todo.icon,
         status: todo.status,
+        statusLabel: statusConfig.label,
+        statusVariant: statusConfig.variant,
         date: todo.date,
         time: todo.time,
+        dateTime: formatDateTime(todo.date, todo.time, allDay),
+        allDay,
         comments: todoComments,
         subItems: todoSubItems,
         commentCount: todoComments.length,
