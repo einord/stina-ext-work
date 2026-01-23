@@ -1,11 +1,11 @@
 import type { WorkComment, WorkCommentInput } from '../types.js'
+import type { UserScopedDb } from './userScopedDb.js'
 import { generateId } from './utils.js'
-import type { WorkDb } from './workDb.js'
 
 export class CommentsRepository {
-  private readonly db: WorkDb
+  private readonly db: UserScopedDb
 
-  constructor(db: WorkDb) {
+  constructor(db: UserScopedDb) {
     this.db = db
   }
 
@@ -18,11 +18,12 @@ export class CommentsRepository {
 
     const createdAt = input.createdAt ?? new Date().toISOString()
     const commentId = generateId('comment')
+    const userId = this.db.getUserId()
 
     await this.db.execute(
-      `INSERT INTO ext_work_manager_comments (id, todo_id, text, created_at)
-       VALUES (?, ?, ?, ?)`,
-      [commentId, input.todoId, input.text, createdAt]
+      `INSERT INTO ext_work_manager_comments (id, todo_id, text, created_at, user_id)
+       VALUES (?, ?, ?, ?, ?)`,
+      [commentId, input.todoId, input.text, createdAt, userId]
     )
 
     return {
@@ -36,16 +37,17 @@ export class CommentsRepository {
   async delete(todoId: string, commentId: string): Promise<boolean> {
     await this.db.initialize()
 
+    const userId = this.db.getUserId()
     const rows = await this.db.execute<{ id: string }>(
-      `SELECT id FROM ext_work_manager_comments WHERE id = ? AND todo_id = ?`,
-      [commentId, todoId]
+      `SELECT id FROM ext_work_manager_comments WHERE id = ? AND todo_id = ? AND user_id = ?`,
+      [commentId, todoId, userId]
     )
 
     if (rows.length === 0) return false
 
     await this.db.execute(
-      `DELETE FROM ext_work_manager_comments WHERE id = ? AND todo_id = ?`,
-      [commentId, todoId]
+      `DELETE FROM ext_work_manager_comments WHERE id = ? AND todo_id = ? AND user_id = ?`,
+      [commentId, todoId, userId]
     )
 
     return true
@@ -54,6 +56,7 @@ export class CommentsRepository {
   async list(todoId: string): Promise<WorkComment[]> {
     await this.db.initialize()
 
+    const userId = this.db.getUserId()
     const rows = await this.db.execute<{
       id: string
       todo_id: string
@@ -62,9 +65,9 @@ export class CommentsRepository {
     }>(
       `SELECT id, todo_id, text, created_at
        FROM ext_work_manager_comments
-       WHERE todo_id = ?
+       WHERE todo_id = ? AND user_id = ?
        ORDER BY created_at ASC`,
-      [todoId]
+      [todoId, userId]
     )
 
     return rows.map((row) => ({

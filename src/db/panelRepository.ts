@@ -1,7 +1,7 @@
 import type { WorkPanelGroup, WorkTodoStatus } from '../types.js'
 import { NO_PROJECT_GROUP } from './constants.js'
+import type { UserScopedDb } from './userScopedDb.js'
 import { normalizeOptionalString } from './utils.js'
-import type { WorkDb } from './workDb.js'
 
 const STATUS_CONFIG: Record<
   WorkTodoStatus,
@@ -25,14 +25,16 @@ function formatDateTime(date: string, time: string, allDay: boolean): string {
 }
 
 export class PanelRepository {
-  private readonly db: WorkDb
+  private readonly db: UserScopedDb
 
-  constructor(db: WorkDb) {
+  constructor(db: UserScopedDb) {
     this.db = db
   }
 
   async listGroups(): Promise<WorkPanelGroup[]> {
     await this.db.initialize()
+
+    const userId = this.db.getUserId()
 
     const projects = await this.db.execute<{
       id: string
@@ -41,11 +43,14 @@ export class PanelRepository {
     }>(
       `SELECT id, name, description
        FROM ext_work_manager_projects
-       ORDER BY name ASC`
+       WHERE user_id = ?
+       ORDER BY name ASC`,
+      [userId]
     )
 
     const groupStates = await this.db.execute<{ group_id: string; collapsed: number }>(
-      `SELECT group_id, collapsed FROM ext_work_manager_group_state`
+      `SELECT group_id, collapsed FROM ext_work_manager_group_state WHERE user_id = ?`,
+      [userId]
     )
 
     const todos = await this.db.execute<{
@@ -62,7 +67,9 @@ export class PanelRepository {
     }>(
       `SELECT id, project_id, title, description, icon, status, due_at, date, time, all_day
        FROM ext_work_manager_todos
-       ORDER BY due_at ASC`
+       WHERE user_id = ?
+       ORDER BY due_at ASC`,
+      [userId]
     )
 
     const subItems = await this.db.execute<{
@@ -75,7 +82,9 @@ export class PanelRepository {
     }>(
       `SELECT id, todo_id, text, completed_at, sort_order, created_at
        FROM ext_work_manager_subitems
-       ORDER BY sort_order ASC, created_at ASC`
+       WHERE user_id = ?
+       ORDER BY sort_order ASC, created_at ASC`,
+      [userId]
     )
 
     const comments = await this.db.execute<{
@@ -86,7 +95,9 @@ export class PanelRepository {
     }>(
       `SELECT id, todo_id, text, created_at
        FROM ext_work_manager_comments
-       ORDER BY created_at ASC`
+       WHERE user_id = ?
+       ORDER BY created_at ASC`,
+      [userId]
     )
 
     const subItemsByTodo = new Map<string, Array<{ id: string; text: string; completedAt: string | null }>>()
@@ -185,21 +196,36 @@ export class PanelRepository {
   async setGroupCollapsed(groupId: string, collapsed: boolean): Promise<boolean> {
     await this.db.initialize()
 
+    const userId = this.db.getUserId()
+
     if (groupId !== NO_PROJECT_GROUP) {
       const project = await this.db.execute<{ id: string }>(
-        `SELECT id FROM ext_work_manager_projects WHERE id = ?`,
-        [groupId]
+        `SELECT id FROM ext_work_manager_projects WHERE id = ? AND user_id = ?`,
+        [groupId, userId]
       )
       if (project.length === 0) return false
     }
 
     const now = new Date().toISOString()
-    await this.db.execute(
-      `INSERT INTO ext_work_manager_group_state (group_id, collapsed, updated_at)
-       VALUES (?, ?, ?)
-       ON CONFLICT(group_id) DO UPDATE SET collapsed = excluded.collapsed, updated_at = excluded.updated_at`,
-      [groupId, collapsed ? 1 : 0, now]
+
+    // Check if record exists for this user/group combination
+    const existing = await this.db.execute<{ group_id: string }>(
+      `SELECT group_id FROM ext_work_manager_group_state WHERE group_id = ? AND user_id = ?`,
+      [groupId, userId]
     )
+
+    if (existing.length > 0) {
+      await this.db.execute(
+        `UPDATE ext_work_manager_group_state SET collapsed = ?, updated_at = ? WHERE group_id = ? AND user_id = ?`,
+        [collapsed ? 1 : 0, now, groupId, userId]
+      )
+    } else {
+      await this.db.execute(
+        `INSERT INTO ext_work_manager_group_state (group_id, collapsed, updated_at, user_id)
+         VALUES (?, ?, ?, ?)`,
+        [groupId, collapsed ? 1 : 0, now, userId]
+      )
+    }
 
     return true
   }

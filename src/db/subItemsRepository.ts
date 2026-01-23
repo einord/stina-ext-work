@@ -1,11 +1,11 @@
 import type { WorkSubItem, WorkSubItemInput } from '../types.js'
+import type { UserScopedDb } from './userScopedDb.js'
 import { generateId } from './utils.js'
-import type { WorkDb } from './workDb.js'
 
 export class SubItemsRepository {
-  private readonly db: WorkDb
+  private readonly db: UserScopedDb
 
-  constructor(db: WorkDb) {
+  constructor(db: UserScopedDb) {
     this.db = db
   }
 
@@ -19,11 +19,12 @@ export class SubItemsRepository {
     const now = new Date().toISOString()
     const subItemId = generateId('sub')
     const sortOrder = input.sortOrder ?? 0
+    const userId = this.db.getUserId()
 
     await this.db.execute(
-      `INSERT INTO ext_work_manager_subitems (id, todo_id, text, completed_at, sort_order, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [subItemId, input.todoId, input.text, null, sortOrder, now, now]
+      `INSERT INTO ext_work_manager_subitems (id, todo_id, text, completed_at, sort_order, created_at, updated_at, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [subItemId, input.todoId, input.text, null, sortOrder, now, now, userId]
     )
 
     return {
@@ -40,16 +41,17 @@ export class SubItemsRepository {
   async delete(todoId: string, subItemId: string): Promise<boolean> {
     await this.db.initialize()
 
+    const userId = this.db.getUserId()
     const rows = await this.db.execute<{ id: string }>(
-      `SELECT id FROM ext_work_manager_subitems WHERE id = ? AND todo_id = ?`,
-      [subItemId, todoId]
+      `SELECT id FROM ext_work_manager_subitems WHERE id = ? AND todo_id = ? AND user_id = ?`,
+      [subItemId, todoId, userId]
     )
 
     if (rows.length === 0) return false
 
     await this.db.execute(
-      `DELETE FROM ext_work_manager_subitems WHERE id = ? AND todo_id = ?`,
-      [subItemId, todoId]
+      `DELETE FROM ext_work_manager_subitems WHERE id = ? AND todo_id = ? AND user_id = ?`,
+      [subItemId, todoId, userId]
     )
 
     return true
@@ -58,6 +60,7 @@ export class SubItemsRepository {
   async list(todoId: string): Promise<WorkSubItem[]> {
     await this.db.initialize()
 
+    const userId = this.db.getUserId()
     const rows = await this.db.execute<{
       id: string
       todo_id: string
@@ -69,9 +72,9 @@ export class SubItemsRepository {
     }>(
       `SELECT id, todo_id, text, completed_at, sort_order, created_at, updated_at
        FROM ext_work_manager_subitems
-       WHERE todo_id = ?
+       WHERE todo_id = ? AND user_id = ?
        ORDER BY sort_order ASC, created_at ASC`,
-      [todoId]
+      [todoId, userId]
     )
 
     return rows.map((row) => ({
@@ -88,9 +91,10 @@ export class SubItemsRepository {
   async toggle(todoId: string, subItemId: string): Promise<boolean> {
     await this.db.initialize()
 
+    const userId = this.db.getUserId()
     const rows = await this.db.execute<{ completed_at: string | null }>(
-      `SELECT completed_at FROM ext_work_manager_subitems WHERE id = ? AND todo_id = ?`,
-      [subItemId, todoId]
+      `SELECT completed_at FROM ext_work_manager_subitems WHERE id = ? AND todo_id = ? AND user_id = ?`,
+      [subItemId, todoId, userId]
     )
 
     const row = rows[0]
@@ -99,8 +103,8 @@ export class SubItemsRepository {
     const nextValue = row.completed_at ? null : new Date().toISOString()
 
     await this.db.execute(
-      `UPDATE ext_work_manager_subitems SET completed_at = ?, updated_at = ? WHERE id = ? AND todo_id = ?`,
-      [nextValue, new Date().toISOString(), subItemId, todoId]
+      `UPDATE ext_work_manager_subitems SET completed_at = ?, updated_at = ? WHERE id = ? AND todo_id = ? AND user_id = ?`,
+      [nextValue, new Date().toISOString(), subItemId, todoId, userId]
     )
 
     return true

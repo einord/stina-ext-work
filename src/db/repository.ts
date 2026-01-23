@@ -19,10 +19,12 @@ import { ProjectsRepository } from './projectsRepository.js'
 import { SettingsRepository } from './settingsRepository.js'
 import { SubItemsRepository } from './subItemsRepository.js'
 import { TodosRepository } from './todosRepository.js'
+import { UserScopedDb } from './userScopedDb.js'
 import { WorkDb, type DatabaseAPI } from './workDb.js'
 
 export class WorkRepository {
-  private readonly db: WorkDb
+  private readonly workDb: WorkDb
+  private readonly db: UserScopedDb
   private readonly projects: ProjectsRepository
   private readonly comments: CommentsRepository
   private readonly subItems: SubItemsRepository
@@ -30,8 +32,9 @@ export class WorkRepository {
   private readonly settings: SettingsRepository
   private readonly panel: PanelRepository
 
-  constructor(db: DatabaseAPI) {
-    this.db = new WorkDb(db)
+  constructor(database: DatabaseAPI, userId: string) {
+    this.workDb = new WorkDb(database)
+    this.db = new UserScopedDb(this.workDb, userId)
     this.projects = new ProjectsRepository(this.db)
     this.comments = new CommentsRepository(this.db)
     this.subItems = new SubItemsRepository(this.db)
@@ -41,7 +44,7 @@ export class WorkRepository {
   }
 
   async initialize(): Promise<void> {
-    await this.db.initialize()
+    await this.workDb.initialize()
   }
 
   async listProjects(options: ListProjectsOptions = {}): Promise<WorkProject[]> {

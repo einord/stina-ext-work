@@ -1,11 +1,11 @@
 import type { ListProjectsOptions, WorkProject, WorkProjectInput } from '../types.js'
+import type { UserScopedDb } from './userScopedDb.js'
 import { generateId, normalizeQuery } from './utils.js'
-import type { WorkDb } from './workDb.js'
 
 export class ProjectsRepository {
-  private readonly db: WorkDb
+  private readonly db: UserScopedDb
 
-  constructor(db: WorkDb) {
+  constructor(db: UserScopedDb) {
     this.db = db
   }
 
@@ -13,16 +13,19 @@ export class ProjectsRepository {
     await this.db.initialize()
 
     const { query, limit = 50, offset = 0 } = options
-    const params: unknown[] = []
-
-    let sql = `SELECT id, name, description, created_at, updated_at
-       FROM ext_work_manager_projects`
+    const userId = this.db.getUserId()
+    const params: unknown[] = [userId]
+    const conditions: string[] = ['user_id = ?']
 
     if (query) {
-      sql += ` WHERE LOWER(name) LIKE ? OR LOWER(description) LIKE ?`
+      conditions.push(`(LOWER(name) LIKE ? OR LOWER(description) LIKE ?)`)
       const normalized = `%${normalizeQuery(query)}%`
       params.push(normalized, normalized)
     }
+
+    let sql = `SELECT id, name, description, created_at, updated_at
+       FROM ext_work_manager_projects
+       WHERE ${conditions.join(' AND ')}`
 
     sql += ` ORDER BY name ASC LIMIT ? OFFSET ?`
     params.push(limit, offset)
@@ -47,6 +50,7 @@ export class ProjectsRepository {
   async get(id: string): Promise<WorkProject | null> {
     await this.db.initialize()
 
+    const userId = this.db.getUserId()
     const rows = await this.db.execute<{
       id: string
       name: string
@@ -56,8 +60,8 @@ export class ProjectsRepository {
     }>(
       `SELECT id, name, description, created_at, updated_at
        FROM ext_work_manager_projects
-       WHERE id = ?`,
-      [id]
+       WHERE id = ? AND user_id = ?`,
+      [id, userId]
     )
 
     const row = rows[0]
@@ -76,6 +80,7 @@ export class ProjectsRepository {
     await this.db.initialize()
 
     const now = new Date().toISOString()
+    const userId = this.db.getUserId()
     const projectId = id ?? generateId('proj')
     const existing = await this.get(projectId)
 
@@ -85,8 +90,8 @@ export class ProjectsRepository {
       await this.db.execute(
         `UPDATE ext_work_manager_projects
          SET name = ?, description = ?, updated_at = ?
-         WHERE id = ?`,
-        [name, description, now, projectId]
+         WHERE id = ? AND user_id = ?`,
+        [name, description, now, projectId, userId]
       )
       return {
         id: projectId,
@@ -102,9 +107,9 @@ export class ProjectsRepository {
     }
 
     await this.db.execute(
-      `INSERT INTO ext_work_manager_projects (id, name, description, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?)`,
-      [projectId, input.name, input.description ?? null, now, now]
+      `INSERT INTO ext_work_manager_projects (id, name, description, created_at, updated_at, user_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [projectId, input.name, input.description ?? null, now, now, userId]
     )
 
     return {
@@ -119,19 +124,23 @@ export class ProjectsRepository {
   async delete(id: string): Promise<boolean> {
     await this.db.initialize()
 
+    const userId = this.db.getUserId()
     const rows = await this.db.execute<{ id: string }>(
-      `SELECT id FROM ext_work_manager_projects WHERE id = ?`,
-      [id]
+      `SELECT id FROM ext_work_manager_projects WHERE id = ? AND user_id = ?`,
+      [id, userId]
     )
 
     if (rows.length === 0) return false
 
     await this.db.execute(
-      `UPDATE ext_work_manager_todos SET project_id = NULL WHERE project_id = ?`,
-      [id]
+      `UPDATE ext_work_manager_todos SET project_id = NULL WHERE project_id = ? AND user_id = ?`,
+      [id, userId]
     )
 
-    await this.db.execute(`DELETE FROM ext_work_manager_projects WHERE id = ?`, [id])
+    await this.db.execute(
+      `DELETE FROM ext_work_manager_projects WHERE id = ? AND user_id = ?`,
+      [id, userId]
+    )
     return true
   }
 }

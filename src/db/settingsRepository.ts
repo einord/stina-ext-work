@@ -1,5 +1,5 @@
 import type { WorkSettings, WorkSettingsUpdate } from '../types.js'
-import type { WorkDb } from './workDb.js'
+import type { UserScopedDb } from './userScopedDb.js'
 
 const DEFAULT_SETTINGS: WorkSettings = {
   defaultReminderMinutes: null,
@@ -8,17 +8,19 @@ const DEFAULT_SETTINGS: WorkSettings = {
 }
 
 export class SettingsRepository {
-  private readonly db: WorkDb
+  private readonly db: UserScopedDb
 
-  constructor(db: WorkDb) {
+  constructor(db: UserScopedDb) {
     this.db = db
   }
 
   async get(): Promise<WorkSettings> {
     await this.db.initialize()
 
+    const userId = this.db.getUserId()
     const rows = await this.db.execute<{ key: string; value: string }>(
-      `SELECT key, value FROM ext_work_manager_settings`
+      `SELECT key, value FROM ext_work_manager_user_settings WHERE user_id = ?`,
+      [userId]
     )
 
     const settings: WorkSettings = { ...DEFAULT_SETTINGS }
@@ -42,6 +44,7 @@ export class SettingsRepository {
     await this.db.initialize()
 
     const now = new Date().toISOString()
+    const userId = this.db.getUserId()
     const current = await this.get()
     const next: WorkSettings = {
       defaultReminderMinutes:
@@ -64,10 +67,10 @@ export class SettingsRepository {
 
     for (const [key, value] of entries) {
       await this.db.execute(
-        `INSERT INTO ext_work_manager_settings (key, value, updated_at)
-         VALUES (?, ?, ?)
-         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
-        [key, value, now]
+        `INSERT INTO ext_work_manager_user_settings (key, value, user_id, updated_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(key, user_id) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+        [key, value, userId, now]
       )
     }
 

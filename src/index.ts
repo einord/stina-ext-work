@@ -72,7 +72,13 @@ function activate(context: ExtensionContext): Disposable {
     return { dispose: () => undefined }
   }
 
-  const repository = new WorkRepository(context.database as DatabaseApi)
+  const userId = (context as { userId?: string }).userId
+  if (!userId) {
+    context.log.warn('userId missing; Work Manager disabled')
+    return { dispose: () => undefined }
+  }
+
+  const repository = new WorkRepository(context.database as DatabaseApi, userId)
   void repository.initialize()
 
   const eventsApi = (context as ExtensionContext & { events?: EventsApi }).events
@@ -90,7 +96,7 @@ function activate(context: ExtensionContext): Disposable {
   const userApi = (context as ExtensionContext & { user?: UserApi }).user
   const actionsApi = (context as ExtensionContext & { actions?: ActionsApi }).actions
 
-  const getReminderJobId = (todoId: string): string => `todo.reminder:${todoId}`
+  const getReminderJobId = (todoId: string): string => `todo.reminder:${userId}:${todoId}`
 
   const resolveUserProfile = async (): Promise<{
     name?: string
@@ -129,7 +135,7 @@ function activate(context: ExtensionContext): Disposable {
       await scheduler.schedule({
         id: getReminderJobId(todo.id),
         schedule: { type: 'at', at: reminderAt },
-        payload: { todoId: todo.id },
+        payload: { todoId: todo.id, userId },
         misfire: 'run_once',
       })
     } catch (error) {
@@ -180,6 +186,11 @@ function activate(context: ExtensionContext): Disposable {
     void (async () => {
       try {
         if (!chat) return
+
+        // Verify the reminder belongs to this user
+        const payloadUserId = payload.payload?.userId as string | undefined
+        if (payloadUserId !== userId) return
+
         const todoId = payload.payload?.todoId
         if (!todoId || typeof todoId !== 'string') return
 

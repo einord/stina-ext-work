@@ -1,15 +1,15 @@
 import type { ListTodosOptions, WorkTodo, WorkTodoInput, WorkTodoStatus } from '../types.js'
-import { deriveDateTime, generateId, normalizeOptionalString, normalizeQuery } from './utils.js'
-import type { WorkDb } from './workDb.js'
 import type { CommentsRepository } from './commentsRepository.js'
 import type { SubItemsRepository } from './subItemsRepository.js'
+import type { UserScopedDb } from './userScopedDb.js'
+import { deriveDateTime, generateId, normalizeOptionalString, normalizeQuery } from './utils.js'
 
 export class TodosRepository {
-  private readonly db: WorkDb
+  private readonly db: UserScopedDb
   private readonly comments: CommentsRepository
   private readonly subItems: SubItemsRepository
 
-  constructor(db: WorkDb, comments: CommentsRepository, subItems: SubItemsRepository) {
+  constructor(db: UserScopedDb, comments: CommentsRepository, subItems: SubItemsRepository) {
     this.db = db
     this.comments = comments
     this.subItems = subItems
@@ -19,8 +19,9 @@ export class TodosRepository {
     await this.db.initialize()
 
     const { query, projectId, status, limit = 50, offset = 0 } = options
-    const params: unknown[] = []
-    const conditions: string[] = []
+    const userId = this.db.getUserId()
+    const params: unknown[] = [userId]
+    const conditions: string[] = ['user_id = ?']
 
     if (query) {
       const normalized = `%${normalizeQuery(query)}%`
@@ -39,11 +40,8 @@ export class TodosRepository {
     }
 
     let sql = `SELECT id, project_id, title, description, icon, status, due_at, date, time, all_day, reminder_minutes, created_at, updated_at
-       FROM ext_work_manager_todos`
-
-    if (conditions.length > 0) {
-      sql += ` WHERE ${conditions.join(' AND ')}`
-    }
+       FROM ext_work_manager_todos
+       WHERE ${conditions.join(' AND ')}`
 
     sql += ` ORDER BY due_at ASC LIMIT ? OFFSET ?`
     params.push(limit, offset)
@@ -84,6 +82,7 @@ export class TodosRepository {
   async get(id: string): Promise<WorkTodo | null> {
     await this.db.initialize()
 
+    const userId = this.db.getUserId()
     const rows = await this.db.execute<{
       id: string
       project_id: string | null
@@ -101,8 +100,8 @@ export class TodosRepository {
     }>(
       `SELECT id, project_id, title, description, icon, status, due_at, date, time, all_day, reminder_minutes, created_at, updated_at
        FROM ext_work_manager_todos
-       WHERE id = ?`,
-      [id]
+       WHERE id = ? AND user_id = ?`,
+      [id, userId]
     )
 
     const row = rows[0]
@@ -136,6 +135,7 @@ export class TodosRepository {
     await this.db.initialize()
 
     const now = new Date().toISOString()
+    const userId = this.db.getUserId()
     const normalizedId = normalizeOptionalString(id)
     const todoId = normalizedId ?? generateId('todo')
     const existing = await this.get(todoId)
@@ -166,7 +166,7 @@ export class TodosRepository {
       await this.db.execute(
         `UPDATE ext_work_manager_todos
          SET project_id = ?, title = ?, description = ?, icon = ?, status = ?, due_at = ?, date = ?, time = ?, all_day = ?, reminder_minutes = ?, updated_at = ?
-         WHERE id = ?`,
+         WHERE id = ? AND user_id = ?`,
         [
           merged.projectId,
           merged.title,
@@ -180,6 +180,7 @@ export class TodosRepository {
           merged.reminderMinutes ?? null,
           now,
           todoId,
+          userId,
         ]
       )
 
@@ -206,8 +207,8 @@ export class TodosRepository {
 
     await this.db.execute(
       `INSERT INTO ext_work_manager_todos (
-        id, project_id, title, description, icon, status, due_at, date, time, all_day, reminder_minutes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, project_id, title, description, icon, status, due_at, date, time, all_day, reminder_minutes, created_at, updated_at, user_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         todoId,
         projectId,
@@ -222,6 +223,7 @@ export class TodosRepository {
         input.reminderMinutes ?? null,
         now,
         now,
+        userId,
       ]
     )
 
@@ -245,25 +247,36 @@ export class TodosRepository {
   async delete(id: string): Promise<boolean> {
     await this.db.initialize()
 
+    const userId = this.db.getUserId()
     const rows = await this.db.execute<{ id: string }>(
-      `SELECT id FROM ext_work_manager_todos WHERE id = ?`,
-      [id]
+      `SELECT id FROM ext_work_manager_todos WHERE id = ? AND user_id = ?`,
+      [id, userId]
     )
 
     if (rows.length === 0) return false
 
-    await this.db.execute(`DELETE FROM ext_work_manager_comments WHERE todo_id = ?`, [id])
-    await this.db.execute(`DELETE FROM ext_work_manager_subitems WHERE todo_id = ?`, [id])
-    await this.db.execute(`DELETE FROM ext_work_manager_todos WHERE id = ?`, [id])
+    await this.db.execute(
+      `DELETE FROM ext_work_manager_comments WHERE todo_id = ? AND user_id = ?`,
+      [id, userId]
+    )
+    await this.db.execute(
+      `DELETE FROM ext_work_manager_subitems WHERE todo_id = ? AND user_id = ?`,
+      [id, userId]
+    )
+    await this.db.execute(
+      `DELETE FROM ext_work_manager_todos WHERE id = ? AND user_id = ?`,
+      [id, userId]
+    )
 
     return true
   }
 
   async has(id: string): Promise<boolean> {
     await this.db.initialize()
+    const userId = this.db.getUserId()
     const rows = await this.db.execute<{ id: string }>(
-      `SELECT id FROM ext_work_manager_todos WHERE id = ?`,
-      [id]
+      `SELECT id FROM ext_work_manager_todos WHERE id = ? AND user_id = ?`,
+      [id, userId]
     )
     return rows.length > 0
   }
