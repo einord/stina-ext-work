@@ -1,4 +1,4 @@
-import type { Tool, ToolResult } from '@stina/extension-api/runtime'
+import type { Tool, ToolResult, ExecutionContext } from '@stina/extension-api/runtime'
 import type { WorkRepository } from '../db/repository.js'
 import type { WorkTodo, WorkTodoInput, WorkTodoStatus } from '../types.js'
 
@@ -109,14 +109,18 @@ export function createListTodosTool(repository: WorkRepository): Tool {
         offset: { type: 'number' },
       },
     },
-    async execute(params: Record<string, unknown>): Promise<ToolResult> {
+    async execute(params: Record<string, unknown>, execContext: ExecutionContext): Promise<ToolResult> {
       try {
+        if (!execContext.userId) {
+          return { success: false, error: 'User context required' }
+        }
+        const repo = repository.withUser(execContext.userId)
         const { query, projectId, status, limit, offset } = params as ListTodosParams
         const statusCheck = validateStatus(status)
         if (!statusCheck.ok) {
           return { success: false, error: statusCheck.error }
         }
-        const todos = await repository.listTodos({
+        const todos = await repo.listTodos({
           query,
           projectId,
           status: statusCheck.status,
@@ -143,11 +147,15 @@ export function createGetTodoTool(repository: WorkRepository): Tool {
       },
       required: ['id'],
     },
-    async execute(params: Record<string, unknown>): Promise<ToolResult> {
+    async execute(params: Record<string, unknown>, execContext: ExecutionContext): Promise<ToolResult> {
       try {
+        if (!execContext.userId) {
+          return { success: false, error: 'User context required' }
+        }
+        const repo = repository.withUser(execContext.userId)
         const { id } = params as unknown as GetTodoParams
         if (!id) return { success: false, error: 'Todo id is required' }
-        const todo = await repository.getTodo(id)
+        const todo = await repo.getTodo(id)
         if (!todo) return { success: false, error: 'Todo not found' }
         return { success: true, data: todo }
       } catch (error) {
@@ -159,7 +167,7 @@ export function createGetTodoTool(repository: WorkRepository): Tool {
 
 export function createUpsertTodoTool(
   repository: WorkRepository,
-  onChange?: (todo: WorkTodo) => void
+  onChange?: (todo: WorkTodo, userId: string) => void
 ): Tool {
   return {
     id: 'work_todos_upsert',
@@ -181,8 +189,12 @@ export function createUpsertTodoTool(
         reminderMinutes: { type: 'number' },
       },
     },
-    async execute(params: Record<string, unknown>): Promise<ToolResult> {
+    async execute(params: Record<string, unknown>, execContext: ExecutionContext): Promise<ToolResult> {
       try {
+        if (!execContext.userId) {
+          return { success: false, error: 'User context required' }
+        }
+        const repo = repository.withUser(execContext.userId)
         const input = params as UpsertTodoParams
         const statusCheck = validateStatus(input.status)
         if (!statusCheck.ok) {
@@ -194,8 +206,8 @@ export function createUpsertTodoTool(
           status: statusCheck.status,
           reminderMinutes: normalizeReminderMinutes(input.reminderMinutes),
         }
-        const todo = await repository.upsertTodo(normalized.id, normalized)
-        onChange?.(todo)
+        const todo = await repo.upsertTodo(normalized.id, normalized)
+        onChange?.(todo, execContext.userId)
         return { success: true, data: todo }
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }
@@ -206,7 +218,7 @@ export function createUpsertTodoTool(
 
 export function createDeleteTodoTool(
   repository: WorkRepository,
-  onDelete?: (todoId: string) => void
+  onDelete?: (todoId: string, userId: string) => void
 ): Tool {
   return {
     id: 'work_todos_delete',
@@ -219,13 +231,17 @@ export function createDeleteTodoTool(
       },
       required: ['id'],
     },
-    async execute(params: Record<string, unknown>): Promise<ToolResult> {
+    async execute(params: Record<string, unknown>, execContext: ExecutionContext): Promise<ToolResult> {
       try {
+        if (!execContext.userId) {
+          return { success: false, error: 'User context required' }
+        }
+        const repo = repository.withUser(execContext.userId)
         const { id } = params as unknown as DeleteTodoParams
         if (!id) return { success: false, error: 'Todo id is required' }
-        const deleted = await repository.deleteTodo(id)
+        const deleted = await repo.deleteTodo(id)
         if (!deleted) return { success: false, error: 'Todo not found' }
-        onDelete?.(id)
+        onDelete?.(id, execContext.userId)
         return { success: true }
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }

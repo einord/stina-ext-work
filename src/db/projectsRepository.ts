@@ -1,11 +1,11 @@
 import type { ListProjectsOptions, WorkProject, WorkProjectInput } from '../types.js'
-import type { UserScopedDb } from './userScopedDb.js'
 import { generateId, normalizeQuery } from './utils.js'
+import type { WorkDb } from './workDb.js'
 
 export class ProjectsRepository {
-  private readonly db: UserScopedDb
+  private readonly db: WorkDb
 
-  constructor(db: UserScopedDb) {
+  constructor(db: WorkDb) {
     this.db = db
   }
 

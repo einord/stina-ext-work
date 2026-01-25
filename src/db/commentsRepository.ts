@@ -1,11 +1,11 @@
 import type { WorkComment, WorkCommentInput } from '../types.js'
-import type { UserScopedDb } from './userScopedDb.js'
 import { generateId } from './utils.js'
+import type { WorkDb } from './workDb.js'
 
 export class CommentsRepository {
-  private readonly db: UserScopedDb
+  private readonly db: WorkDb
 
-  constructor(db: UserScopedDb) {
+  constructor(db: WorkDb) {
     this.db = db
   }
 

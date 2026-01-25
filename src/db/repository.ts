@@ -19,12 +19,10 @@ import { ProjectsRepository } from './projectsRepository.js'
 import { SettingsRepository } from './settingsRepository.js'
 import { SubItemsRepository } from './subItemsRepository.js'
 import { TodosRepository } from './todosRepository.js'
-import { UserScopedDb } from './userScopedDb.js'
 import { WorkDb, type DatabaseAPI } from './workDb.js'
 
 export class WorkRepository {
-  private readonly workDb: WorkDb
-  private readonly db: UserScopedDb
+  private readonly db: WorkDb
   private readonly projects: ProjectsRepository
   private readonly comments: CommentsRepository
   private readonly subItems: SubItemsRepository
@@ -32,9 +30,12 @@ export class WorkRepository {
   private readonly settings: SettingsRepository
   private readonly panel: PanelRepository
 
-  constructor(database: DatabaseAPI, userId: string) {
-    this.workDb = new WorkDb(database)
-    this.db = new UserScopedDb(this.workDb, userId)
+  /**
+   * Creates a WorkRepository instance.
+   * @param database The database API or an existing WorkDb instance
+   */
+  constructor(database: DatabaseAPI | WorkDb) {
+    this.db = database instanceof WorkDb ? database : new WorkDb(database)
     this.projects = new ProjectsRepository(this.db)
     this.comments = new CommentsRepository(this.db)
     this.subItems = new SubItemsRepository(this.db)
@@ -43,8 +44,18 @@ export class WorkRepository {
     this.panel = new PanelRepository(this.db)
   }
 
+  /**
+   * Creates a new WorkRepository instance scoped to the specified user ID.
+   * All operations on the returned repository will be filtered/scoped to this user.
+   * @param userId The user ID to scope operations to
+   * @returns A new WorkRepository instance with the specified user ID
+   */
+  withUser(userId: string): WorkRepository {
+    return new WorkRepository(this.db.withUser(userId))
+  }
+
   async initialize(): Promise<void> {
-    await this.workDb.initialize()
+    await this.db.initialize()
   }
 
   async listProjects(options: ListProjectsOptions = {}): Promise<WorkProject[]> {

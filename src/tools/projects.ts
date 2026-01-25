@@ -1,4 +1,4 @@
-import type { Tool, ToolResult } from '@stina/extension-api/runtime'
+import type { Tool, ToolResult, ExecutionContext } from '@stina/extension-api/runtime'
 import type { WorkRepository } from '../db/repository.js'
 import type { WorkProjectInput } from '../types.js'
 
@@ -33,10 +33,14 @@ export function createListProjectsTool(repository: WorkRepository): Tool {
         offset: { type: 'number' },
       },
     },
-    async execute(params: Record<string, unknown>): Promise<ToolResult> {
+    async execute(params: Record<string, unknown>, execContext: ExecutionContext): Promise<ToolResult> {
       try {
+        if (!execContext.userId) {
+          return { success: false, error: 'User context required' }
+        }
+        const repo = repository.withUser(execContext.userId)
         const { query, limit, offset } = params as ListProjectsParams
-        const projects = await repository.listProjects({ query, limit, offset })
+        const projects = await repo.listProjects({ query, limit, offset })
         return { success: true, data: { count: projects.length, projects } }
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }
@@ -57,11 +61,15 @@ export function createGetProjectTool(repository: WorkRepository): Tool {
       },
       required: ['id'],
     },
-    async execute(params: Record<string, unknown>): Promise<ToolResult> {
+    async execute(params: Record<string, unknown>, execContext: ExecutionContext): Promise<ToolResult> {
       try {
+        if (!execContext.userId) {
+          return { success: false, error: 'User context required' }
+        }
+        const repo = repository.withUser(execContext.userId)
         const { id } = params as unknown as GetProjectParams
         if (!id) return { success: false, error: 'Project id is required' }
-        const project = await repository.getProject(id)
+        const project = await repo.getProject(id)
         if (!project) return { success: false, error: 'Project not found' }
         return { success: true, data: project }
       } catch (error) {
@@ -73,7 +81,7 @@ export function createGetProjectTool(repository: WorkRepository): Tool {
 
 export function createUpsertProjectTool(
   repository: WorkRepository,
-  onChange?: () => void
+  onChange?: (userId: string) => void
 ): Tool {
   return {
     id: 'work_projects_upsert',
@@ -87,11 +95,15 @@ export function createUpsertProjectTool(
         description: { type: 'string' },
       },
     },
-    async execute(params: Record<string, unknown>): Promise<ToolResult> {
+    async execute(params: Record<string, unknown>, execContext: ExecutionContext): Promise<ToolResult> {
       try {
+        if (!execContext.userId) {
+          return { success: false, error: 'User context required' }
+        }
+        const repo = repository.withUser(execContext.userId)
         const { id, name, description } = params as UpsertProjectParams
-        const project = await repository.upsertProject(id, { name, description })
-        onChange?.()
+        const project = await repo.upsertProject(id, { name, description })
+        onChange?.(execContext.userId)
         return { success: true, data: project }
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }
@@ -102,7 +114,7 @@ export function createUpsertProjectTool(
 
 export function createDeleteProjectTool(
   repository: WorkRepository,
-  onChange?: () => void
+  onChange?: (userId: string) => void
 ): Tool {
   return {
     id: 'work_projects_delete',
@@ -115,13 +127,17 @@ export function createDeleteProjectTool(
       },
       required: ['id'],
     },
-    async execute(params: Record<string, unknown>): Promise<ToolResult> {
+    async execute(params: Record<string, unknown>, execContext: ExecutionContext): Promise<ToolResult> {
       try {
+        if (!execContext.userId) {
+          return { success: false, error: 'User context required' }
+        }
+        const repo = repository.withUser(execContext.userId)
         const { id } = params as unknown as DeleteProjectParams
         if (!id) return { success: false, error: 'Project id is required' }
-        const deleted = await repository.deleteProject(id)
+        const deleted = await repo.deleteProject(id)
         if (!deleted) return { success: false, error: 'Project not found' }
-        onChange?.()
+        onChange?.(execContext.userId)
         return { success: true }
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }

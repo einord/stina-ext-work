@@ -1,4 +1,4 @@
-import type { Tool, ToolResult } from '@stina/extension-api/runtime'
+import type { Tool, ToolResult, ExecutionContext } from '@stina/extension-api/runtime'
 import type { WorkRepository } from '../db/repository.js'
 import type { WorkSubItemInput } from '../types.js'
 
@@ -9,7 +9,7 @@ interface DeleteSubItemParams {
 
 export function createAddSubItemTool(
   repository: WorkRepository,
-  onChange?: () => void
+  onChange?: (userId: string) => void
 ): Tool {
   return {
     id: 'work_subitems_add',
@@ -24,11 +24,15 @@ export function createAddSubItemTool(
       },
       required: ['todoId', 'text'],
     },
-    async execute(params: Record<string, unknown>): Promise<ToolResult> {
+    async execute(params: Record<string, unknown>, execContext: ExecutionContext): Promise<ToolResult> {
       try {
+        if (!execContext.userId) {
+          return { success: false, error: 'User context required' }
+        }
+        const repo = repository.withUser(execContext.userId)
         const input = params as WorkSubItemInput
-        const subItem = await repository.addSubItem(input)
-        onChange?.()
+        const subItem = await repo.addSubItem(input)
+        onChange?.(execContext.userId)
         return { success: true, data: subItem }
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }
@@ -39,7 +43,7 @@ export function createAddSubItemTool(
 
 export function createDeleteSubItemTool(
   repository: WorkRepository,
-  onChange?: () => void
+  onChange?: (userId: string) => void
 ): Tool {
   return {
     id: 'work_subitems_delete',
@@ -53,15 +57,19 @@ export function createDeleteSubItemTool(
       },
       required: ['todoId', 'subItemId'],
     },
-    async execute(params: Record<string, unknown>): Promise<ToolResult> {
+    async execute(params: Record<string, unknown>, execContext: ExecutionContext): Promise<ToolResult> {
       try {
+        if (!execContext.userId) {
+          return { success: false, error: 'User context required' }
+        }
+        const repo = repository.withUser(execContext.userId)
         const { todoId, subItemId } = params as unknown as DeleteSubItemParams
         if (!todoId || !subItemId) {
           return { success: false, error: 'todoId and subItemId are required' }
         }
-        const deleted = await repository.deleteSubItem(todoId, subItemId)
+        const deleted = await repo.deleteSubItem(todoId, subItemId)
         if (!deleted) return { success: false, error: 'Subitem not found' }
-        onChange?.()
+        onChange?.(execContext.userId)
         return { success: true }
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }

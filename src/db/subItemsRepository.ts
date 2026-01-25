@@ -1,11 +1,11 @@
 import type { WorkSubItem, WorkSubItemInput } from '../types.js'
-import type { UserScopedDb } from './userScopedDb.js'
 import { generateId } from './utils.js'
+import type { WorkDb } from './workDb.js'
 
 export class SubItemsRepository {
-  private readonly db: UserScopedDb
+  private readonly db: WorkDb
 
-  constructor(db: UserScopedDb) {
+  constructor(db: WorkDb) {
     this.db = db
   }
 

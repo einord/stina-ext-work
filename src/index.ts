@@ -2,7 +2,7 @@
  * Work Manager Extension for Stina
  */
 
-import { initializeExtension, type ExtensionContext, type Disposable } from '@stina/extension-api/runtime'
+import { initializeExtension, type ExtensionContext, type ExecutionContext, type Disposable } from '@stina/extension-api/runtime'
 import {
   createListProjectsTool,
   createGetProjectTool,
@@ -30,7 +30,7 @@ type EventsApi = { emit: (name: string, payload?: Record<string, unknown>) => Pr
 type ActionsApi = {
   register: (action: {
     id: string
-    execute: (params: Record<string, unknown>) => Promise<{ success: boolean; data?: unknown; error?: string }>
+    execute: (params: Record<string, unknown>, execContext: ExecutionContext) => Promise<{ success: boolean; data?: unknown; error?: string }>
   }) => { dispose: () => void }
 }
 
@@ -43,16 +43,17 @@ type SchedulerJobRequest = {
   schedule: { type: 'at'; at: string }
   payload?: Record<string, unknown>
   misfire?: 'run_once' | 'skip'
+  userId: string
 }
 
 type SchedulerAPI = {
   schedule: (job: SchedulerJobRequest) => Promise<void>
   cancel: (jobId: string) => Promise<void>
-  onFire: (callback: (payload: SchedulerFirePayload) => void) => Disposable
+  onFire: (callback: (payload: SchedulerFirePayload, execContext: ExecutionContext) => void) => Disposable
 }
 
 type ChatAPI = {
-  appendInstruction: (message: { text: string; conversationId?: string }) => Promise<void>
+  appendInstruction: (message: { text: string; conversationId?: string; userId?: string }) => Promise<void>
 }
 
 type UserApi = {
@@ -67,18 +68,17 @@ type UserApi = {
 function activate(context: ExtensionContext): Disposable {
   context.log.info('Activating Work Manager extension')
 
+  // Debug: log available context keys to understand the structure
+  const contextKeys = Object.keys(context)
+  context.log.info('Context keys available', { keys: contextKeys })
+
   if (!context.database) {
     context.log.warn('Database permission missing; Work Manager disabled')
     return { dispose: () => undefined }
   }
 
-  const userId = (context as { userId?: string }).userId
-  if (!userId) {
-    context.log.warn('userId missing; Work Manager disabled')
-    return { dispose: () => undefined }
-  }
-
-  const repository = new WorkRepository(context.database as DatabaseApi, userId)
+  // Repository is created without a user scope - use repository.withUser(userId) for user-scoped operations
+  const repository = new WorkRepository(context.database as DatabaseApi)
   void repository.initialize()
 
   const eventsApi = (context as ExtensionContext & { events?: EventsApi }).events
@@ -96,7 +96,9 @@ function activate(context: ExtensionContext): Disposable {
   const userApi = (context as ExtensionContext & { user?: UserApi }).user
   const actionsApi = (context as ExtensionContext & { actions?: ActionsApi }).actions
 
-  const getReminderJobId = (todoId: string): string => `todo.reminder:${userId}:${todoId}`
+  const getReminderJobId = (todoId: string, userId: string): string => {
+    return `todo.reminder:${userId}:${todoId}`
+  }
 
   const resolveUserProfile = async (): Promise<{
     name?: string
@@ -117,26 +119,35 @@ function activate(context: ExtensionContext): Disposable {
     }
   }
 
-  const scheduleTodo = async (todo: WorkTodo): Promise<void> => {
+  /**
+   * Schedule a reminder for a todo item.
+   * @param todo The todo to schedule
+   * @param userId The user ID to scope the reminder to
+   */
+  const scheduleTodo = async (todo: WorkTodo, userId: string): Promise<void> => {
     if (!scheduler) return
     try {
+      const jobId = getReminderJobId(todo.id, userId)
+
       if (!isTodoActive(todo)) {
-        await scheduler.cancel(getReminderJobId(todo.id))
+        await scheduler.cancel(jobId)
         return
       }
 
-      const settings = await repository.getSettings()
+      const userRepo = repository.withUser(userId)
+      const settings = await userRepo.getSettings()
       const reminderAt = resolveReminderAt(todo, settings)
       if (!reminderAt) {
-        await scheduler.cancel(getReminderJobId(todo.id))
+        await scheduler.cancel(jobId)
         return
       }
 
       await scheduler.schedule({
-        id: getReminderJobId(todo.id),
+        id: jobId,
         schedule: { type: 'at', at: reminderAt },
         payload: { todoId: todo.id, userId },
         misfire: 'run_once',
+        userId,
       })
     } catch (error) {
       context.log.warn('Failed to schedule todo reminder', {
@@ -146,10 +157,15 @@ function activate(context: ExtensionContext): Disposable {
     }
   }
 
-  const cancelTodo = async (todoId: string): Promise<void> => {
+  /**
+   * Cancel a scheduled reminder for a todo item.
+   * @param todoId The todo ID
+   * @param userId The user ID
+   */
+  const cancelTodo = async (todoId: string, userId: string): Promise<void> => {
     if (!scheduler) return
     try {
-      await scheduler.cancel(getReminderJobId(todoId))
+      await scheduler.cancel(getReminderJobId(todoId, userId))
     } catch (error) {
       context.log.warn('Failed to cancel todo reminder', {
         id: todoId,
@@ -158,18 +174,23 @@ function activate(context: ExtensionContext): Disposable {
     }
   }
 
-  const scheduleAllTodos = async (): Promise<void> => {
+  /**
+   * Schedule reminders for all active todos for a specific user.
+   * @param userId The user ID to schedule reminders for
+   */
+  const scheduleAllTodosForUser = async (userId: string): Promise<void> => {
     if (!scheduler) return
     try {
+      const userRepo = repository.withUser(userId)
       const pageSize = 200
       let offset = 0
 
       while (true) {
-        const todos = await repository.listTodos({ limit: pageSize, offset })
+        const todos = await userRepo.listTodos({ limit: pageSize, offset })
         if (todos.length === 0) break
 
         for (const todo of todos) {
-          await scheduleTodo(todo)
+          await scheduleTodo(todo, userId)
         }
 
         if (todos.length < pageSize) break
@@ -177,33 +198,37 @@ function activate(context: ExtensionContext): Disposable {
       }
     } catch (error) {
       context.log.warn('Failed to schedule reminders for todos', {
+        userId,
         error: error instanceof Error ? error.message : String(error),
       })
     }
   }
 
-  const schedulerDisposable = scheduler?.onFire((payload) => {
+  const schedulerDisposable = scheduler?.onFire((payload, execContext) => {
     void (async () => {
       try {
         if (!chat) return
 
-        // Verify the reminder belongs to this user
+        // Verify the reminder belongs to this user using request-scoped context
         const payloadUserId = payload.payload?.userId as string | undefined
-        if (payloadUserId !== userId) return
+        const currentUserId = execContext.userId
+        if (!currentUserId || payloadUserId !== currentUserId) return
 
         const todoId = payload.payload?.todoId
         if (!todoId || typeof todoId !== 'string') return
 
-        const todo = await repository.getTodo(todoId)
+        // Use user-scoped repository
+        const userRepo = repository.withUser(currentUserId)
+        const todo = await userRepo.getTodo(todoId)
         if (!todo || !isTodoActive(todo)) return
 
-        const settings = await repository.getSettings()
+        const settings = await userRepo.getSettings()
         const profile = await resolveUserProfile()
         const message = buildInstructionMessage(todo, payload, settings, {
           userName: profile?.name,
           userLanguage: profile?.language,
         })
-        await chat.appendInstruction({ text: message })
+        await chat.appendInstruction({ text: message, userId: currentUserId })
       } catch (error) {
         context.log.warn('Failed to handle scheduler fire', {
           error: error instanceof Error ? error.message : String(error),
@@ -217,9 +242,13 @@ function activate(context: ExtensionContext): Disposable {
     ? [
         actionsApi.register({
           id: 'getGroups',
-          async execute() {
+          async execute(_params: Record<string, unknown>, execContext: ExecutionContext) {
             try {
-              const groups = await repository.listPanelGroups()
+              if (!execContext.userId) {
+                return { success: false, error: 'User context required' }
+              }
+              const userRepo = repository.withUser(execContext.userId)
+              const groups = await userRepo.listPanelGroups()
               return { success: true, data: groups }
             } catch (error) {
               return {
@@ -231,9 +260,13 @@ function activate(context: ExtensionContext): Disposable {
         }),
         actionsApi.register({
           id: 'getSettings',
-          async execute() {
+          async execute(_params: Record<string, unknown>, execContext: ExecutionContext) {
             try {
-              const settings = await repository.getSettings()
+              if (!execContext.userId) {
+                return { success: false, error: 'User context required' }
+              }
+              const userRepo = repository.withUser(execContext.userId)
+              const settings = await userRepo.getSettings()
               // Convert values to strings for Select components
               return {
                 success: true,
@@ -253,8 +286,12 @@ function activate(context: ExtensionContext): Disposable {
         }),
         actionsApi.register({
           id: 'updateSetting',
-          async execute(params: Record<string, unknown>) {
+          async execute(params: Record<string, unknown>, execContext: ExecutionContext) {
             try {
+              if (!execContext.userId) {
+                return { success: false, error: 'User context required' }
+              }
+              const userRepo = repository.withUser(execContext.userId)
               const key = params.key as string
               const value = params.value as string
 
@@ -267,9 +304,9 @@ function activate(context: ExtensionContext): Disposable {
                 update[key] = value === 'auto' ? null : value
               }
 
-              await repository.updateSettings(update)
+              await userRepo.updateSettings(update)
               emitSettingsRefresh()
-              void scheduleAllTodos()
+              void scheduleAllTodosForUser(execContext.userId)
 
               return { success: true }
             } catch (error) {
@@ -288,36 +325,36 @@ function activate(context: ExtensionContext): Disposable {
 
     context.tools!.register(createListProjectsTool(repository)),
     context.tools!.register(createGetProjectTool(repository)),
-    context.tools!.register(createUpsertProjectTool(repository, emitProjectRefresh)),
-    context.tools!.register(createDeleteProjectTool(repository, emitProjectRefresh)),
+    context.tools!.register(createUpsertProjectTool(repository, (_userId) => emitProjectRefresh())),
+    context.tools!.register(createDeleteProjectTool(repository, (_userId) => emitProjectRefresh())),
 
     context.tools!.register(createListTodosTool(repository)),
     context.tools!.register(createGetTodoTool(repository)),
     context.tools!.register(
-      createUpsertTodoTool(repository, (todo) => {
+      createUpsertTodoTool(repository, (todo, userId) => {
         emitTodoRefresh()
-        void scheduleTodo(todo)
+        void scheduleTodo(todo, userId)
       })
     ),
     context.tools!.register(
-      createDeleteTodoTool(repository, (todoId) => {
+      createDeleteTodoTool(repository, (todoId, userId) => {
         emitTodoRefresh()
-        void cancelTodo(todoId)
+        void cancelTodo(todoId, userId)
       })
     ),
 
-    context.tools!.register(createAddCommentTool(repository, emitTodoRefresh)),
-    context.tools!.register(createDeleteCommentTool(repository, emitTodoRefresh)),
+    context.tools!.register(createAddCommentTool(repository, (_userId) => emitTodoRefresh())),
+    context.tools!.register(createDeleteCommentTool(repository, (_userId) => emitTodoRefresh())),
 
-    context.tools!.register(createAddSubItemTool(repository, emitTodoRefresh)),
-    context.tools!.register(createDeleteSubItemTool(repository, emitTodoRefresh)),
+    context.tools!.register(createAddSubItemTool(repository, (_userId) => emitTodoRefresh())),
+    context.tools!.register(createDeleteSubItemTool(repository, (_userId) => emitTodoRefresh())),
 
     context.tools!.register(createListSettingsTool(repository)),
     context.tools!.register(createGetSettingsTool(repository)),
     context.tools!.register(
-      createUpdateSettingsTool(repository, () => {
+      createUpdateSettingsTool(repository, (_settings, userId) => {
         emitSettingsRefresh()
-        void scheduleAllTodos()
+        void scheduleAllTodosForUser(userId)
       })
     ),
     ...(schedulerDisposable ? [schedulerDisposable] : []),
@@ -344,7 +381,8 @@ function activate(context: ExtensionContext): Disposable {
     actions: actionsApi ? ['getGroups', 'getSettings', 'updateSetting'] : [],
   })
 
-  void scheduleAllTodos()
+  // Note: Reminder scheduling now happens per-user when todos are created/updated
+  // via scheduleTodo() called from the tool callbacks
 
   return {
     dispose: () => {

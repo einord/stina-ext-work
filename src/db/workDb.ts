@@ -6,10 +6,38 @@ export interface DatabaseAPI {
 
 export class WorkDb {
   private readonly db: DatabaseAPI
-  private initialized = false
+  private readonly _userId: string | undefined
+  private static initializedDatabases = new WeakSet<DatabaseAPI>()
 
-  constructor(db: DatabaseAPI) {
+  /**
+   * Creates a WorkDb instance.
+   * @param db The database API
+   * @param userId Optional user ID for scoped operations
+   */
+  constructor(db: DatabaseAPI, userId?: string) {
     this.db = db
+    this._userId = userId
+  }
+
+  /**
+   * Creates a new WorkDb instance scoped to the specified user ID.
+   * This is the preferred way to get a user-scoped database instance.
+   * @param userId The user ID to scope operations to
+   * @returns A new WorkDb instance with the specified user ID
+   */
+  withUser(userId: string): WorkDb {
+    return new WorkDb(this.db, userId)
+  }
+
+  /**
+   * Returns the current user ID for filtering/inserting data.
+   * @throws Error if no user ID has been set
+   */
+  getUserId(): string {
+    if (!this._userId) {
+      throw new Error('No user ID set. Use withUser(userId) to create a user-scoped instance.')
+    }
+    return this._userId
   }
 
   /**
@@ -27,7 +55,8 @@ export class WorkDb {
   }
 
   async initialize(): Promise<void> {
-    if (this.initialized) return
+    // Use static WeakSet to track initialized databases across all WorkDb instances
+    if (WorkDb.initializedDatabases.has(this.db)) return
 
     await this.db.execute(
       `CREATE TABLE IF NOT EXISTS ext_work_manager_projects (
@@ -169,7 +198,7 @@ export class WorkDb {
 
     await cleanupProjectReferences(this.db)
 
-    this.initialized = true
+    WorkDb.initializedDatabases.add(this.db)
   }
 
   async execute<T = unknown>(sql: string, params?: unknown[]): Promise<T[]> {

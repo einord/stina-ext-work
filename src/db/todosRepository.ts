@@ -1,15 +1,15 @@
 import type { ListTodosOptions, WorkTodo, WorkTodoInput, WorkTodoStatus } from '../types.js'
 import type { CommentsRepository } from './commentsRepository.js'
 import type { SubItemsRepository } from './subItemsRepository.js'
-import type { UserScopedDb } from './userScopedDb.js'
 import { deriveDateTime, generateId, normalizeOptionalString, normalizeQuery } from './utils.js'
+import type { WorkDb } from './workDb.js'
 
 export class TodosRepository {
-  private readonly db: UserScopedDb
+  private readonly db: WorkDb
   private readonly comments: CommentsRepository
   private readonly subItems: SubItemsRepository
 
-  constructor(db: UserScopedDb, comments: CommentsRepository, subItems: SubItemsRepository) {
+  constructor(db: WorkDb, comments: CommentsRepository, subItems: SubItemsRepository) {
     this.db = db
     this.comments = comments
     this.subItems = subItems

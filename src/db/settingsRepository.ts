@@ -1,5 +1,5 @@
 import type { WorkSettings, WorkSettingsUpdate } from '../types.js'
-import type { UserScopedDb } from './userScopedDb.js'
+import type { WorkDb } from './workDb.js'
 
 const DEFAULT_SETTINGS: WorkSettings = {
   defaultReminderMinutes: null,
@@ -8,9 +8,9 @@ const DEFAULT_SETTINGS: WorkSettings = {
 }
 
 export class SettingsRepository {
-  private readonly db: UserScopedDb
+  private readonly db: WorkDb
 
-  constructor(db: UserScopedDb) {
+  constructor(db: WorkDb) {
     this.db = db
   }
 

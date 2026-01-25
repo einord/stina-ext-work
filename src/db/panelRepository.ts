@@ -1,7 +1,7 @@
 import type { WorkPanelGroup, WorkTodoStatus } from '../types.js'
 import { NO_PROJECT_GROUP } from './constants.js'
-import type { UserScopedDb } from './userScopedDb.js'
 import { normalizeOptionalString } from './utils.js'
+import type { WorkDb } from './workDb.js'
 
 const STATUS_CONFIG: Record<
   WorkTodoStatus,
@@ -25,9 +25,9 @@ function formatDateTime(date: string, time: string, allDay: boolean): string {
 }
 
 export class PanelRepository {
-  private readonly db: UserScopedDb
+  private readonly db: WorkDb
 
-  constructor(db: UserScopedDb) {
+  constructor(db: WorkDb) {
     this.db = db
   }
 

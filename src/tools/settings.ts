@@ -1,4 +1,4 @@
-import type { Tool, ToolResult } from '@stina/extension-api/runtime'
+import type { Tool, ToolResult, ExecutionContext } from '@stina/extension-api/runtime'
 import type { WorkRepository } from '../db/repository.js'
 import type { WorkSettings, WorkSettingsUpdate } from '../types.js'
 
@@ -42,7 +42,7 @@ export function createListSettingsTool(_repository: WorkRepository): Tool {
       type: 'object',
       properties: {},
     },
-    async execute(): Promise<ToolResult> {
+    async execute(_params: Record<string, unknown>, _execContext: ExecutionContext): Promise<ToolResult> {
       try {
         const items: ListSettingsItem[] = [
           {
@@ -68,9 +68,13 @@ export function createGetSettingsTool(repository: WorkRepository): Tool {
       type: 'object',
       properties: {},
     },
-    async execute(): Promise<ToolResult> {
+    async execute(_params: Record<string, unknown>, execContext: ExecutionContext): Promise<ToolResult> {
       try {
-        const settings = await repository.getSettings()
+        if (!execContext.userId) {
+          return { success: false, error: 'User context required' }
+        }
+        const repo = repository.withUser(execContext.userId)
+        const settings = await repo.getSettings()
         return { success: true, data: settings }
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }
@@ -81,7 +85,7 @@ export function createGetSettingsTool(repository: WorkRepository): Tool {
 
 export function createUpdateSettingsTool(
   repository: WorkRepository,
-  onChange?: (settings: WorkSettings) => void
+  onChange?: (settings: WorkSettings, userId: string) => void
 ): Tool {
   return {
     id: 'work_settings_update',
@@ -95,15 +99,19 @@ export function createUpdateSettingsTool(
         reminderLocale: { type: 'string' },
       },
     },
-    async execute(params: Record<string, unknown>): Promise<ToolResult> {
+    async execute(params: Record<string, unknown>, execContext: ExecutionContext): Promise<ToolResult> {
       try {
+        if (!execContext.userId) {
+          return { success: false, error: 'User context required' }
+        }
+        const repo = repository.withUser(execContext.userId)
         const update: WorkSettingsUpdate = {
           defaultReminderMinutes: normalizeNullableNumber(params.defaultReminderMinutes),
           allDayReminderTime: normalizeNullableString(params.allDayReminderTime),
           reminderLocale: normalizeNullableString(params.reminderLocale),
         }
-        const settings = await repository.updateSettings(update)
-        onChange?.(settings)
+        const settings = await repo.updateSettings(update)
+        onChange?.(settings, execContext.userId)
         return { success: true, data: settings }
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }

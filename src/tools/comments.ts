@@ -1,4 +1,4 @@
-import type { Tool, ToolResult } from '@stina/extension-api/runtime'
+import type { Tool, ToolResult, ExecutionContext } from '@stina/extension-api/runtime'
 import type { WorkRepository } from '../db/repository.js'
 import type { WorkCommentInput } from '../types.js'
 
@@ -9,7 +9,7 @@ interface DeleteCommentParams {
 
 export function createAddCommentTool(
   repository: WorkRepository,
-  onChange?: () => void
+  onChange?: (userId: string) => void
 ): Tool {
   return {
     id: 'work_comments_add',
@@ -24,11 +24,15 @@ export function createAddCommentTool(
       },
       required: ['todoId', 'text'],
     },
-    async execute(params: Record<string, unknown>): Promise<ToolResult> {
+    async execute(params: Record<string, unknown>, execContext: ExecutionContext): Promise<ToolResult> {
       try {
+        if (!execContext.userId) {
+          return { success: false, error: 'User context required' }
+        }
+        const repo = repository.withUser(execContext.userId)
         const input = params as WorkCommentInput
-        const comment = await repository.addComment(input)
-        onChange?.()
+        const comment = await repo.addComment(input)
+        onChange?.(execContext.userId)
         return { success: true, data: comment }
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }
@@ -39,7 +43,7 @@ export function createAddCommentTool(
 
 export function createDeleteCommentTool(
   repository: WorkRepository,
-  onChange?: () => void
+  onChange?: (userId: string) => void
 ): Tool {
   return {
     id: 'work_comments_delete',
@@ -53,15 +57,19 @@ export function createDeleteCommentTool(
       },
       required: ['todoId', 'commentId'],
     },
-    async execute(params: Record<string, unknown>): Promise<ToolResult> {
+    async execute(params: Record<string, unknown>, execContext: ExecutionContext): Promise<ToolResult> {
       try {
+        if (!execContext.userId) {
+          return { success: false, error: 'User context required' }
+        }
+        const repo = repository.withUser(execContext.userId)
         const { todoId, commentId } = params as unknown as DeleteCommentParams
         if (!todoId || !commentId) {
           return { success: false, error: 'todoId and commentId are required' }
         }
-        const deleted = await repository.deleteComment(todoId, commentId)
+        const deleted = await repo.deleteComment(todoId, commentId)
         if (!deleted) return { success: false, error: 'Comment not found' }
-        onChange?.()
+        onChange?.(execContext.userId)
         return { success: true }
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }
