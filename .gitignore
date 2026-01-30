@@ -4,3 +4,6 @@ releases/
 .env
 .DS_Store
 pnpm-debug.log
+
+# Local pnpm link overrides
+pnpm-workspace.yaml
