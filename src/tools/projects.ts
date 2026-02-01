@@ -1,5 +1,9 @@
+/**
+ * Project tools for Work Manager extension.
+ */
+
 import type { Tool, ToolResult, ExecutionContext } from '@stina/extension-api/runtime'
-import type { WorkRepository } from '../db/repository.js'
+import { WorkRepository } from '../storage/index.js'
 import type { WorkProjectInput } from '../types.js'
 
 interface ListProjectsParams {
@@ -20,7 +24,12 @@ interface DeleteProjectParams {
   id: string
 }
 
-export function createListProjectsTool(repository: WorkRepository): Tool {
+/**
+ * Creates a tool for listing projects.
+ * @param onChange - Optional callback when data changes
+ * @returns The list projects tool
+ */
+export function createListProjectsTool(): Tool {
   return {
     id: 'work_projects_list',
     name: 'List Projects',
@@ -38,7 +47,7 @@ export function createListProjectsTool(repository: WorkRepository): Tool {
         if (!execContext.userId) {
           return { success: false, error: 'User context required' }
         }
-        const repo = repository.withUser(execContext.userId)
+        const repo = new WorkRepository(execContext.userStorage)
         const { query, limit, offset } = params as ListProjectsParams
         const projects = await repo.listProjects({ query, limit, offset })
         return { success: true, data: { count: projects.length, projects } }
@@ -49,7 +58,11 @@ export function createListProjectsTool(repository: WorkRepository): Tool {
   }
 }
 
-export function createGetProjectTool(repository: WorkRepository): Tool {
+/**
+ * Creates a tool for getting a project by ID.
+ * @returns The get project tool
+ */
+export function createGetProjectTool(): Tool {
   return {
     id: 'work_projects_get',
     name: 'Get Project',
@@ -66,7 +79,7 @@ export function createGetProjectTool(repository: WorkRepository): Tool {
         if (!execContext.userId) {
           return { success: false, error: 'User context required' }
         }
-        const repo = repository.withUser(execContext.userId)
+        const repo = new WorkRepository(execContext.userStorage)
         const { id } = params as unknown as GetProjectParams
         if (!id) return { success: false, error: 'Project id is required' }
         const project = await repo.getProject(id)
@@ -79,8 +92,12 @@ export function createGetProjectTool(repository: WorkRepository): Tool {
   }
 }
 
+/**
+ * Creates a tool for creating/updating projects.
+ * @param onChange - Optional callback when data changes
+ * @returns The upsert project tool
+ */
 export function createUpsertProjectTool(
-  repository: WorkRepository,
   onChange?: (userId: string) => void
 ): Tool {
   return {
@@ -100,7 +117,7 @@ export function createUpsertProjectTool(
         if (!execContext.userId) {
           return { success: false, error: 'User context required' }
         }
-        const repo = repository.withUser(execContext.userId)
+        const repo = new WorkRepository(execContext.userStorage)
         const { id, name, description } = params as UpsertProjectParams
         const project = await repo.upsertProject(id, { name, description })
         onChange?.(execContext.userId)
@@ -112,8 +129,12 @@ export function createUpsertProjectTool(
   }
 }
 
+/**
+ * Creates a tool for deleting projects.
+ * @param onChange - Optional callback when data changes
+ * @returns The delete project tool
+ */
 export function createDeleteProjectTool(
-  repository: WorkRepository,
   onChange?: (userId: string) => void
 ): Tool {
   return {
@@ -132,7 +153,7 @@ export function createDeleteProjectTool(
         if (!execContext.userId) {
           return { success: false, error: 'User context required' }
         }
-        const repo = repository.withUser(execContext.userId)
+        const repo = new WorkRepository(execContext.userStorage)
         const { id } = params as unknown as DeleteProjectParams
         if (!id) return { success: false, error: 'Project id is required' }
         const deleted = await repo.deleteProject(id)

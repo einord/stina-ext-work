@@ -1,8 +1,8 @@
 {
-  "$schema": "https://stina.app/schemas/extension-manifest.json",
+  "$schema": "https://github.com/einord/stina/releases/download/stina-v0.23.0/extension-manifest.schema.json",
   "id": "work-manager",
   "name": "Work Manager",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Manage work todos and projects.",
   "type": "tools",
   "author": {
@@ -12,7 +12,7 @@
   "repository": "https://github.com/einord/stina-ext-work",
   "license": "MIT",
   "engines": {
-    "stina": ">=0.7.1"
+    "stina": ">=0.5.0"
   },
   "platforms": ["web", "electron", "tui"],
   "main": "index.js",
@@ -22,13 +22,33 @@
     "actions.register",
     "panels.register",
     "events.emit",
-    "database.own",
+    "storage.collections",
     "scheduler.register",
     "chat.message.write",
     "user.profile.read"
   ],
 
   "contributes": {
+    "storage": {
+      "collections": {
+        "projects": {
+          "indexes": ["name"]
+        },
+        "todos": {
+          "indexes": ["projectId", "status", "dueAt"]
+        },
+        "comments": {
+          "indexes": ["todoId"]
+        },
+        "subitems": {
+          "indexes": ["todoId", "sortOrder"]
+        },
+        "settings": {},
+        "groupState": {
+          "indexes": ["groupId"]
+        }
+      }
+    },
     "toolSettings": [
       {
         "id": "projects",

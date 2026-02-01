@@ -1,5 +1,9 @@
+/**
+ * Settings tools for Work Manager extension.
+ */
+
 import type { Tool, ToolResult, ExecutionContext } from '@stina/extension-api/runtime'
-import type { WorkRepository } from '../db/repository.js'
+import { WorkRepository } from '../storage/index.js'
 import type { WorkSettings, WorkSettingsUpdate } from '../types.js'
 
 interface ListSettingsItem {
@@ -33,7 +37,11 @@ const normalizeNullableString = (value: unknown): string | null | undefined => {
   return null
 }
 
-export function createListSettingsTool(_repository: WorkRepository): Tool {
+/**
+ * Creates a tool for listing available settings.
+ * @returns The list settings tool
+ */
+export function createListSettingsTool(): Tool {
   return {
     id: 'work_settings_list',
     name: 'List Work Settings',
@@ -59,7 +67,11 @@ export function createListSettingsTool(_repository: WorkRepository): Tool {
   }
 }
 
-export function createGetSettingsTool(repository: WorkRepository): Tool {
+/**
+ * Creates a tool for getting current settings.
+ * @returns The get settings tool
+ */
+export function createGetSettingsTool(): Tool {
   return {
     id: 'work_settings_get',
     name: 'Get Work Settings',
@@ -73,7 +85,7 @@ export function createGetSettingsTool(repository: WorkRepository): Tool {
         if (!execContext.userId) {
           return { success: false, error: 'User context required' }
         }
-        const repo = repository.withUser(execContext.userId)
+        const repo = new WorkRepository(execContext.userStorage)
         const settings = await repo.getSettings()
         return { success: true, data: settings }
       } catch (error) {
@@ -83,8 +95,12 @@ export function createGetSettingsTool(repository: WorkRepository): Tool {
   }
 }
 
+/**
+ * Creates a tool for updating settings.
+ * @param onChange - Optional callback when settings are updated
+ * @returns The update settings tool
+ */
 export function createUpdateSettingsTool(
-  repository: WorkRepository,
   onChange?: (settings: WorkSettings, userId: string) => void
 ): Tool {
   return {
@@ -104,7 +120,7 @@ export function createUpdateSettingsTool(
         if (!execContext.userId) {
           return { success: false, error: 'User context required' }
         }
-        const repo = repository.withUser(execContext.userId)
+        const repo = new WorkRepository(execContext.userStorage)
         const update: WorkSettingsUpdate = {
           defaultReminderMinutes: normalizeNullableNumber(params.defaultReminderMinutes),
           allDayReminderTime: normalizeNullableString(params.allDayReminderTime),

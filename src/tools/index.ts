@@ -1,3 +1,7 @@
+/**
+ * Tool exports for Work Manager extension.
+ */
+
 export {
   createListProjectsTool,
   createGetProjectTool,

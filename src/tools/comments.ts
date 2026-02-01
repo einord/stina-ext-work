@@ -1,5 +1,9 @@
+/**
+ * Comment tools for Work Manager extension.
+ */
+
 import type { Tool, ToolResult, ExecutionContext } from '@stina/extension-api/runtime'
-import type { WorkRepository } from '../db/repository.js'
+import { WorkRepository } from '../storage/index.js'
 import type { WorkCommentInput } from '../types.js'
 
 interface DeleteCommentParams {
@@ -7,8 +11,12 @@ interface DeleteCommentParams {
   commentId: string
 }
 
+/**
+ * Creates a tool for adding comments to todos.
+ * @param onChange - Optional callback when data changes
+ * @returns The add comment tool
+ */
 export function createAddCommentTool(
-  repository: WorkRepository,
   onChange?: (userId: string) => void
 ): Tool {
   return {
@@ -29,7 +37,7 @@ export function createAddCommentTool(
         if (!execContext.userId) {
           return { success: false, error: 'User context required' }
         }
-        const repo = repository.withUser(execContext.userId)
+        const repo = new WorkRepository(execContext.userStorage)
         const input = params as WorkCommentInput
         const comment = await repo.addComment(input)
         onChange?.(execContext.userId)
@@ -41,8 +49,12 @@ export function createAddCommentTool(
   }
 }
 
+/**
+ * Creates a tool for deleting comments.
+ * @param onChange - Optional callback when data changes
+ * @returns The delete comment tool
+ */
 export function createDeleteCommentTool(
-  repository: WorkRepository,
   onChange?: (userId: string) => void
 ): Tool {
   return {
@@ -62,7 +74,7 @@ export function createDeleteCommentTool(
         if (!execContext.userId) {
           return { success: false, error: 'User context required' }
         }
-        const repo = repository.withUser(execContext.userId)
+        const repo = new WorkRepository(execContext.userStorage)
         const { todoId, commentId } = params as unknown as DeleteCommentParams
         if (!todoId || !commentId) {
           return { success: false, error: 'todoId and commentId are required' }

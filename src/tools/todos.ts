@@ -1,5 +1,9 @@
+/**
+ * Todo tools for Work Manager extension.
+ */
+
 import type { Tool, ToolResult, ExecutionContext } from '@stina/extension-api/runtime'
-import type { WorkRepository } from '../db/repository.js'
+import { WorkRepository } from '../storage/index.js'
 import type { WorkTodo, WorkTodoInput, WorkTodoStatus } from '../types.js'
 
 interface ListTodosParams {
@@ -94,7 +98,11 @@ const validateStatus = (value: unknown): { ok: true; status?: WorkTodoStatus } |
   return { ok: true, status: normalized }
 }
 
-export function createListTodosTool(repository: WorkRepository): Tool {
+/**
+ * Creates a tool for listing todos.
+ * @returns The list todos tool
+ */
+export function createListTodosTool(): Tool {
   return {
     id: 'work_todos_list',
     name: 'List Todos',
@@ -114,7 +122,7 @@ export function createListTodosTool(repository: WorkRepository): Tool {
         if (!execContext.userId) {
           return { success: false, error: 'User context required' }
         }
-        const repo = repository.withUser(execContext.userId)
+        const repo = new WorkRepository(execContext.userStorage)
         const { query, projectId, status, limit, offset } = params as ListTodosParams
         const statusCheck = validateStatus(status)
         if (!statusCheck.ok) {
@@ -135,7 +143,11 @@ export function createListTodosTool(repository: WorkRepository): Tool {
   }
 }
 
-export function createGetTodoTool(repository: WorkRepository): Tool {
+/**
+ * Creates a tool for getting a todo by ID.
+ * @returns The get todo tool
+ */
+export function createGetTodoTool(): Tool {
   return {
     id: 'work_todos_get',
     name: 'Get Todo',
@@ -152,7 +164,7 @@ export function createGetTodoTool(repository: WorkRepository): Tool {
         if (!execContext.userId) {
           return { success: false, error: 'User context required' }
         }
-        const repo = repository.withUser(execContext.userId)
+        const repo = new WorkRepository(execContext.userStorage)
         const { id } = params as unknown as GetTodoParams
         if (!id) return { success: false, error: 'Todo id is required' }
         const todo = await repo.getTodo(id)
@@ -165,8 +177,12 @@ export function createGetTodoTool(repository: WorkRepository): Tool {
   }
 }
 
+/**
+ * Creates a tool for creating/updating todos.
+ * @param onChange - Optional callback when a todo is created/updated
+ * @returns The upsert todo tool
+ */
 export function createUpsertTodoTool(
-  repository: WorkRepository,
   onChange?: (todo: WorkTodo, userId: string) => void
 ): Tool {
   return {
@@ -194,7 +210,7 @@ export function createUpsertTodoTool(
         if (!execContext.userId) {
           return { success: false, error: 'User context required' }
         }
-        const repo = repository.withUser(execContext.userId)
+        const repo = new WorkRepository(execContext.userStorage)
         const input = params as UpsertTodoParams
         const statusCheck = validateStatus(input.status)
         if (!statusCheck.ok) {
@@ -216,8 +232,12 @@ export function createUpsertTodoTool(
   }
 }
 
+/**
+ * Creates a tool for deleting todos.
+ * @param onDelete - Optional callback when a todo is deleted
+ * @returns The delete todo tool
+ */
 export function createDeleteTodoTool(
-  repository: WorkRepository,
   onDelete?: (todoId: string, userId: string) => void
 ): Tool {
   return {
@@ -236,7 +256,7 @@ export function createDeleteTodoTool(
         if (!execContext.userId) {
           return { success: false, error: 'User context required' }
         }
-        const repo = repository.withUser(execContext.userId)
+        const repo = new WorkRepository(execContext.userStorage)
         const { id } = params as unknown as DeleteTodoParams
         if (!id) return { success: false, error: 'Todo id is required' }
         const deleted = await repo.deleteTodo(id)

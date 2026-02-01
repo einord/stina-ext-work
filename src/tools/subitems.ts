@@ -1,5 +1,9 @@
+/**
+ * SubItem tools for Work Manager extension.
+ */
+
 import type { Tool, ToolResult, ExecutionContext } from '@stina/extension-api/runtime'
-import type { WorkRepository } from '../db/repository.js'
+import { WorkRepository } from '../storage/index.js'
 import type { WorkSubItemInput } from '../types.js'
 
 interface DeleteSubItemParams {
@@ -7,8 +11,12 @@ interface DeleteSubItemParams {
   subItemId: string
 }
 
+/**
+ * Creates a tool for adding sub-items to todos.
+ * @param onChange - Optional callback when data changes
+ * @returns The add sub-item tool
+ */
 export function createAddSubItemTool(
-  repository: WorkRepository,
   onChange?: (userId: string) => void
 ): Tool {
   return {
@@ -29,7 +37,7 @@ export function createAddSubItemTool(
         if (!execContext.userId) {
           return { success: false, error: 'User context required' }
         }
-        const repo = repository.withUser(execContext.userId)
+        const repo = new WorkRepository(execContext.userStorage)
         const input = params as WorkSubItemInput
         const subItem = await repo.addSubItem(input)
         onChange?.(execContext.userId)
@@ -41,8 +49,12 @@ export function createAddSubItemTool(
   }
 }
 
+/**
+ * Creates a tool for deleting sub-items.
+ * @param onChange - Optional callback when data changes
+ * @returns The delete sub-item tool
+ */
 export function createDeleteSubItemTool(
-  repository: WorkRepository,
   onChange?: (userId: string) => void
 ): Tool {
   return {
@@ -62,7 +74,7 @@ export function createDeleteSubItemTool(
         if (!execContext.userId) {
           return { success: false, error: 'User context required' }
         }
-        const repo = repository.withUser(execContext.userId)
+        const repo = new WorkRepository(execContext.userStorage)
         const { todoId, subItemId } = params as unknown as DeleteSubItemParams
         if (!todoId || !subItemId) {
           return { success: false, error: 'todoId and subItemId are required' }
