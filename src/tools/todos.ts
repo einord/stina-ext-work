@@ -183,7 +183,7 @@ export function createGetTodoTool(): Tool {
  * @returns The upsert todo tool
  */
 export function createUpsertTodoTool(
-  onChange?: (todo: WorkTodo, userId: string) => void
+  onChange?: (todo: WorkTodo, execContext: ExecutionContext) => void
 ): Tool {
   return {
     id: 'work_todos_upsert',
@@ -196,7 +196,10 @@ export function createUpsertTodoTool(
         projectId: { type: 'string' },
         title: { type: 'string' },
         description: { type: 'string' },
-        icon: { type: 'string' },
+        icon: {
+          type: 'string',
+          description: 'Icon name from the huge-icons library (e.g., "idea-01", "calendar-03", "check-circle-01")',
+        },
         status: { type: 'string' },
         dueAt: { type: 'string' },
         date: { type: 'string' },
@@ -223,7 +226,7 @@ export function createUpsertTodoTool(
           reminderMinutes: normalizeReminderMinutes(input.reminderMinutes),
         }
         const todo = await repo.upsertTodo(normalized.id, normalized)
-        onChange?.(todo, execContext.userId)
+        onChange?.(todo, execContext)
         return { success: true, data: todo }
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }

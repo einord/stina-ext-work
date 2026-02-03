@@ -163,79 +163,183 @@
                 "work.todo.changed",
                 "work.project.changed"
               ]
+            },
+            "editModal": {
+              "action": "getEditModalState",
+              "refreshOn": ["work.modal.opened", "work.modal.closed"]
             }
           },
           "content": {
             "component": "VerticalStack",
             "gap": 1,
-            "children": {
-              "each": "$groups",
-              "as": "group",
-              "items": [
-                {
-                  "component": "Panel",
-                  "title": "$group.title",
-                  "icon": "folder-01",
-                  "content": {
-                    "component": "VerticalStack",
-                    "gap": 0.5,
-                    "children": {
-                      "each": "$group.items",
-                      "as": "todo",
-                      "items": [
-                        {
-                          "component": "VerticalStack",
-                          "gap": 0.25,
-                          "children": [
-                            {
-                              "component": "HorizontalStack",
-                              "gap": 0.5,
-                              "children": [
-                                { "component": "Icon", "name": "$todo.icon" },
-                                { "component": "Label", "text": "$todo.title" }
-                              ]
-                            },
-                            {
-                              "component": "HorizontalStack",
-                              "gap": 0.5,
-                              "style": { "align-items": "center" },
-                              "children": [
-                                {
-                                  "component": "Label",
-                                  "text": "$todo.dateTime",
-                                  "style": { "font-size": "0.85em", "opacity": "0.8" }
-                                },
-                                {
-                                  "component": "Pill",
-                                  "text": "$todo.statusLabel",
-                                  "variant": "$todo.statusVariant"
-                                }
-                              ]
-                            },
+            "children": [
+              {
+                "component": "VerticalStack",
+                "gap": 1,
+                "children": {
+                  "each": "$groups",
+                  "as": "group",
+                  "items": [
+                    {
+                      "component": "Panel",
+                      "title": "$group.title",
+                      "icon": "folder-01",
+                      "content": {
+                        "component": "VerticalStack",
+                        "gap": 0.5,
+                        "children": {
+                          "each": "$group.items",
+                          "as": "todo",
+                          "items": [
                             {
                               "component": "VerticalStack",
                               "gap": 0.25,
-                              "style": { "padding-left": "1.5rem", "margin-top": "0.25rem" },
-                              "children": {
-                                "each": "$todo.comments",
-                                "as": "comment",
-                                "items": [
-                                  {
-                                    "component": "Label",
-                                    "text": "$comment.text",
-                                    "style": { "font-size": "0.8em", "opacity": "0.7" }
+                              "children": [
+                                {
+                                  "component": "HorizontalStack",
+                                  "gap": 0.5,
+                                  "style": { "align-items": "center" },
+                                  "children": [
+                                    { "component": "Icon", "name": "$todo.icon" },
+                                    { "component": "Label", "text": "$todo.title", "style": { "flex": "1" } },
+                                    {
+                                      "component": "IconButton",
+                                      "icon": "pencil-edit-01",
+                                      "tooltip": "Edit todo",
+                                      "onClickAction": {
+                                        "action": "openEditTodo",
+                                        "params": { "todoId": "$todo.id" }
+                                      }
+                                    }
+                                  ]
+                                },
+                                {
+                                  "component": "HorizontalStack",
+                                  "gap": 0.5,
+                                  "style": { "align-items": "center" },
+                                  "children": [
+                                    {
+                                      "component": "Label",
+                                      "text": "$todo.dateTime",
+                                      "style": { "font-size": "0.85em", "opacity": "0.8" }
+                                    },
+                                    {
+                                      "component": "Pill",
+                                      "text": "$todo.statusLabel",
+                                      "variant": "$todo.statusVariant"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "component": "VerticalStack",
+                                  "gap": 0.25,
+                                  "style": { "padding-left": "1.5rem", "margin-top": "0.25rem" },
+                                  "children": {
+                                    "each": "$todo.comments",
+                                    "as": "comment",
+                                    "items": [
+                                      {
+                                        "component": "Label",
+                                        "text": "$comment.text",
+                                        "style": { "font-size": "0.8em", "opacity": "0.7" }
+                                      }
+                                    ]
                                   }
-                                ]
-                              }
+                                }
+                              ]
                             }
                           ]
                         }
-                      ]
+                      }
                     }
-                  }
+                  ]
                 }
-              ]
-            }
+              },
+              {
+                "component": "Modal",
+                "title": "Edit Todo",
+                "open": "$editModal.modalOpen",
+                "maxWidth": "500px",
+                "onCloseAction": "closeEditModal",
+                "body": {
+                  "component": "VerticalStack",
+                  "gap": 1,
+                  "children": [
+                    {
+                      "component": "TextInput",
+                      "label": "Title",
+                      "value": "$editModal.todo.title",
+                      "onChangeAction": { "action": "updateEditField", "params": { "field": "title", "value": "$value" } }
+                    },
+                    {
+                      "component": "TextInput",
+                      "label": "Description",
+                      "value": "$editModal.todo.description",
+                      "onChangeAction": { "action": "updateEditField", "params": { "field": "description", "value": "$value" } }
+                    },
+                    {
+                      "component": "TextInput",
+                      "label": "Icon (huge-icons name)",
+                      "placeholder": "e.g., idea-01",
+                      "value": "$editModal.todo.icon",
+                      "onChangeAction": { "action": "updateEditField", "params": { "field": "icon", "value": "$value" } }
+                    },
+                    {
+                      "component": "Select",
+                      "label": "Status",
+                      "options": [
+                        { "label": "Not started", "value": "not_started" },
+                        { "label": "In progress", "value": "in_progress" },
+                        { "label": "Completed", "value": "completed" },
+                        { "label": "Cancelled", "value": "cancelled" }
+                      ],
+                      "selectedValue": "$editModal.todo.status",
+                      "onChangeAction": { "action": "updateEditField", "params": { "field": "status", "value": "$value" } }
+                    },
+                    {
+                      "component": "TextInput",
+                      "label": "Date (YYYY-MM-DD)",
+                      "placeholder": "2025-01-15",
+                      "value": "$editModal.todo.date",
+                      "onChangeAction": { "action": "updateEditField", "params": { "field": "date", "value": "$value" } }
+                    },
+                    {
+                      "component": "TextInput",
+                      "label": "Time (HH:MM)",
+                      "placeholder": "14:00",
+                      "value": "$editModal.todo.time",
+                      "onChangeAction": { "action": "updateEditField", "params": { "field": "time", "value": "$value" } }
+                    },
+                    {
+                      "component": "Toggle",
+                      "label": "All day",
+                      "checked": "$editModal.todo.allDay",
+                      "onChangeAction": { "action": "updateEditField", "params": { "field": "allDay", "value": "$value" } }
+                    }
+                  ]
+                },
+                "footer": {
+                  "component": "HorizontalStack",
+                  "gap": 0.5,
+                  "style": { "justify-content": "flex-end" },
+                  "children": [
+                    {
+                      "component": "Button",
+                      "text": "Cancel",
+                      "onClickAction": "closeEditModal"
+                    },
+                    {
+                      "component": "Button",
+                      "text": "Save",
+                      "onClickAction": {
+                        "action": "saveTodo",
+                        "params": { "todoId": "$editModal.todo.id" }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
           }
         }
       }

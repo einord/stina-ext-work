@@ -26,7 +26,7 @@ import {
 import { WorkRepository } from './storage/index.js'
 import { buildInstructionMessage, isTodoActive, resolveReminderAt } from './reminders.js'
 import type { SchedulerFirePayload } from './reminders.js'
-import type { WorkTodo } from './types.js'
+import type { WorkTodo, WorkTodoInput } from './types.js'
 
 type EventsApi = { emit: (name: string, payload?: Record<string, unknown>) => Promise<void> }
 
@@ -126,11 +126,18 @@ function activate(context: ExtensionContext): Disposable {
    * @param userStorage - The user-scoped storage API
    */
   const scheduleTodo = async (todo: WorkTodo, userId: string, userStorage: StorageAPI): Promise<void> => {
-    if (!scheduler) return
+    if (!scheduler) {
+      context.log.warn('Scheduler API not available, cannot schedule reminder', { todoId: todo.id })
+      return
+    }
     try {
       const jobId = getReminderJobId(todo.id, userId)
 
       if (!isTodoActive(todo)) {
+        context.log.info('Todo is not active, cancelling any existing reminder', {
+          todoId: todo.id,
+          status: todo.status,
+        })
         await scheduler.cancel(jobId)
         return
       }
@@ -139,9 +146,24 @@ function activate(context: ExtensionContext): Disposable {
       const settings = await repo.getSettings()
       const reminderAt = resolveReminderAt(todo, settings)
       if (!reminderAt) {
+        context.log.info('No reminder time resolved, cancelling any existing reminder', {
+          todoId: todo.id,
+          dueAt: todo.dueAt,
+          reminderMinutes: todo.reminderMinutes,
+          defaultReminderMinutes: settings.defaultReminderMinutes,
+          allDay: todo.allDay,
+          allDayReminderTime: settings.allDayReminderTime,
+        })
         await scheduler.cancel(jobId)
         return
       }
+
+      context.log.info('Scheduling reminder', {
+        todoId: todo.id,
+        jobId,
+        reminderAt,
+        dueAt: todo.dueAt,
+      })
 
       await scheduler.schedule({
         id: jobId,
@@ -150,6 +172,8 @@ function activate(context: ExtensionContext): Disposable {
         misfire: 'run_once',
         userId,
       })
+
+      context.log.info('Reminder scheduled successfully', { todoId: todo.id, jobId })
     } catch (error) {
       context.log.warn('Failed to schedule todo reminder', {
         id: todo.id,
@@ -239,6 +263,9 @@ function activate(context: ExtensionContext): Disposable {
     })()
   })
 
+  // In-memory modal state per user
+  const editModalState = new Map<string, { modalOpen: boolean; todo: WorkTodo | null; formData: Record<string, unknown> }>()
+
   // Register UI actions for component-based panels and settings
   const actionDisposables = actionsApi
     ? [
@@ -319,6 +346,95 @@ function activate(context: ExtensionContext): Disposable {
             }
           },
         }),
+        actionsApi.register({
+          id: 'getEditModalState',
+          async execute(_params: Record<string, unknown>, execContext: ExecutionContext) {
+            if (!execContext.userId) {
+              return { success: false, error: 'User context required' }
+            }
+            const state = editModalState.get(execContext.userId) ?? { modalOpen: false, todo: null }
+            return { success: true, data: state }
+          },
+        }),
+        actionsApi.register({
+          id: 'openEditTodo',
+          async execute(params: Record<string, unknown>, execContext: ExecutionContext) {
+            if (!execContext.userId) {
+              return { success: false, error: 'User context required' }
+            }
+            const todoId = params.todoId as string
+            if (!todoId) {
+              return { success: false, error: 'todoId is required' }
+            }
+
+            const repo = new WorkRepository(execContext.userStorage)
+            const todo = await repo.getTodo(todoId)
+            if (!todo) {
+              return { success: false, error: 'Todo not found' }
+            }
+
+            editModalState.set(execContext.userId, {
+              modalOpen: true,
+              todo,
+              formData: { ...todo },
+            })
+            emitEvent('work.modal.opened')
+            return { success: true, data: { modalOpen: true, todo } }
+          },
+        }),
+        actionsApi.register({
+          id: 'updateEditField',
+          async execute(params: Record<string, unknown>, execContext: ExecutionContext) {
+            if (!execContext.userId) {
+              return { success: false, error: 'User context required' }
+            }
+            const state = editModalState.get(execContext.userId)
+            if (!state?.todo) {
+              return { success: false, error: 'No todo being edited' }
+            }
+
+            const field = params.field as string
+            const value = params.value
+            state.formData[field] = value
+            // Update the todo object for display
+            ;(state.todo as unknown as Record<string, unknown>)[field] = value
+
+            return { success: true }
+          },
+        }),
+        actionsApi.register({
+          id: 'closeEditModal',
+          async execute(_params: Record<string, unknown>, execContext: ExecutionContext) {
+            if (!execContext.userId) {
+              return { success: false, error: 'User context required' }
+            }
+            editModalState.set(execContext.userId, { modalOpen: false, todo: null, formData: {} })
+            emitEvent('work.modal.closed')
+            return { success: true, data: { modalOpen: false, todo: null } }
+          },
+        }),
+        actionsApi.register({
+          id: 'saveTodo',
+          async execute(params: Record<string, unknown>, execContext: ExecutionContext) {
+            if (!execContext.userId) {
+              return { success: false, error: 'User context required' }
+            }
+            const state = editModalState.get(execContext.userId)
+            if (!state?.todo) {
+              return { success: false, error: 'No todo being edited' }
+            }
+
+            const repo = new WorkRepository(execContext.userStorage)
+            const todoId = params.todoId as string
+            const todo = await repo.upsertTodo(todoId, state.formData as WorkTodoInput)
+
+            editModalState.set(execContext.userId, { modalOpen: false, todo: null, formData: {} })
+            emitTodoRefresh()
+            emitEvent('work.modal.closed')
+            void scheduleTodo(todo, execContext.userId, execContext.userStorage)
+            return { success: true, data: todo }
+          },
+        }),
       ]
     : []
 
@@ -333,10 +449,9 @@ function activate(context: ExtensionContext): Disposable {
     context.tools!.register(createListTodosTool()),
     context.tools!.register(createGetTodoTool()),
     context.tools!.register(
-      createUpsertTodoTool((_todo, _userId) => {
+      createUpsertTodoTool((todo, execContext) => {
         emitTodoRefresh()
-        // Note: We can't easily pass userStorage here since we don't have execContext
-        // The scheduler will get the storage from its own execContext when it fires
+        void scheduleTodo(todo, execContext.userId!, execContext.userStorage)
       })
     ),
     context.tools!.register(
@@ -381,7 +496,7 @@ function activate(context: ExtensionContext): Disposable {
       'work_settings_get',
       'work_settings_update',
     ],
-    actions: actionsApi ? ['getGroups', 'getSettings', 'updateSetting'] : [],
+    actions: actionsApi ? ['getGroups', 'getSettings', 'updateSetting', 'getEditModalState', 'openEditTodo', 'updateEditField', 'closeEditModal', 'saveTodo'] : [],
   })
 
   return {
