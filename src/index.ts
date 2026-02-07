@@ -48,7 +48,7 @@ type SchedulerJobRequest = {
 type SchedulerAPI = {
   schedule: (job: SchedulerJobRequest) => Promise<void>
   cancel: (jobId: string) => Promise<void>
-  onFire: (callback: (payload: SchedulerFirePayload, execContext: ExecutionContext) => void) => Disposable
+  onFire: (callback: (payload: SchedulerFirePayload, execContext: ExecutionContext) => void | Promise<void>) => Disposable
 }
 
 type ChatAPI = {
@@ -230,37 +230,49 @@ function activate(context: ExtensionContext): Disposable {
     }
   }
 
-  const schedulerDisposable = scheduler?.onFire((payload, execContext) => {
-    void (async () => {
-      try {
-        if (!chat) return
+  const schedulerDisposable = scheduler?.onFire(async (payload, execContext) => {
+    if (!chat) {
+      context.log.warn('Scheduler fire: chat API not available')
+      return
+    }
 
-        // Verify the reminder belongs to this user using request-scoped context
-        const payloadUserId = payload.payload?.userId as string | undefined
-        const currentUserId = execContext.userId
-        if (!currentUserId || payloadUserId !== currentUserId) return
+    // Verify the reminder belongs to this user using request-scoped context
+    const payloadUserId = payload.payload?.userId as string | undefined
+    const currentUserId = execContext.userId
+    if (!currentUserId || payloadUserId !== currentUserId) {
+      context.log.warn('Scheduler fire: userId mismatch', {
+        payloadUserId,
+        currentUserId,
+      })
+      return
+    }
 
-        const todoId = payload.payload?.todoId
-        if (!todoId || typeof todoId !== 'string') return
+    const todoId = payload.payload?.todoId
+    if (!todoId || typeof todoId !== 'string') {
+      context.log.warn('Scheduler fire: missing or invalid todoId', { todoId })
+      return
+    }
 
-        // Use user-scoped storage from execution context
-        const repo = new WorkRepository(execContext.userStorage)
-        const todo = await repo.getTodo(todoId)
-        if (!todo || !isTodoActive(todo)) return
+    // Use user-scoped storage from execution context
+    const repo = new WorkRepository(execContext.userStorage)
+    const todo = await repo.getTodo(todoId)
+    if (!todo || !isTodoActive(todo)) {
+      context.log.info('Scheduler fire: todo not found or not active', {
+        todoId,
+        found: !!todo,
+        status: todo?.status,
+      })
+      return
+    }
 
-        const settings = await repo.getSettings()
-        const profile = await resolveUserProfile()
-        const message = buildInstructionMessage(todo, payload, settings, {
-          userName: profile?.name,
-          userLanguage: profile?.language,
-        })
-        await chat.appendInstruction({ text: message, userId: currentUserId })
-      } catch (error) {
-        context.log.warn('Failed to handle scheduler fire', {
-          error: error instanceof Error ? error.message : String(error),
-        })
-      }
-    })()
+    const settings = await repo.getSettings()
+    const profile = await resolveUserProfile()
+    const message = buildInstructionMessage(todo, payload, settings, {
+      userName: profile?.name,
+      userLanguage: profile?.language,
+    })
+    await chat.appendInstruction({ text: message, userId: currentUserId })
+    context.log.info('Scheduler fire: reminder sent', { todoId })
   })
 
   // In-memory modal state per user
