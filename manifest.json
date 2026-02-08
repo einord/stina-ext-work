@@ -2,7 +2,7 @@
   "$schema": "https://github.com/einord/stina/releases/download/stina-v0.23.0/extension-manifest.schema.json",
   "id": "work-manager",
   "name": "Work Manager",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Manage work todos and projects.",
   "type": "tools",
   "author": {
@@ -43,10 +43,7 @@
         "subitems": {
           "indexes": ["todoId", "sortOrder"]
         },
-        "settings": {},
-        "groupState": {
-          "indexes": ["groupId"]
-        }
+        "settings": {}
       }
     },
     "toolSettings": [

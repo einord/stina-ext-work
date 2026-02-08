@@ -21,9 +21,12 @@ const resolveLocale = (settings: WorkSettings, userLanguage?: string | null): 's
     if (userLocale.startsWith('en')) return 'en'
   }
 
-  const envLocale =
-    (typeof process !== 'undefined' && (process.env.LANG || process.env.LC_ALL || process.env.LC_MESSAGES)) ||
-    undefined
+  let envLocale: string | undefined
+  try {
+    envLocale = (typeof process !== 'undefined' && (process.env.LANG || process.env.LC_ALL || process.env.LC_MESSAGES)) || undefined
+  } catch {
+    // process.env may not be available in sandboxed environments
+  }
 
   if (envLocale?.toLowerCase().startsWith('sv')) return 'sv'
   return 'en'

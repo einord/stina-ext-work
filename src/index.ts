@@ -276,6 +276,7 @@ function activate(context: ExtensionContext): Disposable {
   })
 
   // In-memory modal state per user
+  const MAX_MODAL_STATES = 100
   const editModalState = new Map<string, { modalOpen: boolean; todo: WorkTodo | null; formData: Record<string, unknown> }>()
 
   // Register UI actions for component-based panels and settings
@@ -347,7 +348,11 @@ function activate(context: ExtensionContext): Disposable {
 
               await repo.updateSettings(update)
               emitSettingsRefresh()
-              void scheduleAllTodosForUser(execContext.userId, execContext.userStorage)
+              void scheduleAllTodosForUser(execContext.userId, execContext.userStorage).catch((err) =>
+                context.log.warn('Failed to reschedule todos after settings update', {
+                  error: err instanceof Error ? err.message : String(err),
+                })
+              )
 
               return { success: true }
             } catch (error) {
@@ -385,6 +390,11 @@ function activate(context: ExtensionContext): Disposable {
               return { success: false, error: 'Todo not found' }
             }
 
+            // Evict oldest entries if we exceed the limit
+            if (!editModalState.has(execContext.userId) && editModalState.size >= MAX_MODAL_STATES) {
+              const oldestKey = editModalState.keys().next().value
+              if (oldestKey) editModalState.delete(oldestKey)
+            }
             editModalState.set(execContext.userId, {
               modalOpen: true,
               todo,
@@ -397,21 +407,28 @@ function activate(context: ExtensionContext): Disposable {
         actionsApi.register({
           id: 'updateEditField',
           async execute(params: Record<string, unknown>, execContext: ExecutionContext) {
-            if (!execContext.userId) {
-              return { success: false, error: 'User context required' }
-            }
-            const state = editModalState.get(execContext.userId)
-            if (!state?.todo) {
-              return { success: false, error: 'No todo being edited' }
-            }
+            try {
+              if (!execContext.userId) {
+                return { success: false, error: 'User context required' }
+              }
+              const state = editModalState.get(execContext.userId)
+              if (!state?.todo) {
+                return { success: false, error: 'No todo being edited' }
+              }
 
-            const field = params.field as string
-            const value = params.value
-            state.formData[field] = value
-            // Update the todo object for display
-            ;(state.todo as unknown as Record<string, unknown>)[field] = value
+              const field = params.field as string
+              const value = params.value
+              state.formData[field] = value
+              // Update the todo object for display
+              ;(state.todo as unknown as Record<string, unknown>)[field] = value
 
-            return { success: true }
+              return { success: true }
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+              }
+            }
           },
         }),
         actionsApi.register({
@@ -513,6 +530,7 @@ function activate(context: ExtensionContext): Disposable {
 
   return {
     dispose: () => {
+      editModalState.clear()
       for (const disposable of disposables) {
         disposable.dispose()
       }
