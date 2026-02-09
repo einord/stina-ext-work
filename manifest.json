@@ -43,7 +43,8 @@
         "subitems": {
           "indexes": ["todoId", "sortOrder"]
         },
-        "settings": {}
+        "settings": {},
+        "groupState": {}
       }
     },
     "toolSettings": [
