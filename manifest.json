@@ -276,9 +276,8 @@
                       "onChangeAction": { "action": "updateEditField", "params": { "field": "description", "value": "$value" } }
                     },
                     {
-                      "component": "TextInput",
-                      "label": "Icon (huge-icons name)",
-                      "placeholder": "e.g., idea-01",
+                      "component": "IconPicker",
+                      "label": "Icon",
                       "value": "$editModal.todo.icon",
                       "onChangeAction": { "action": "updateEditField", "params": { "field": "icon", "value": "$value" } }
                     },
