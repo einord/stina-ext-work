@@ -48,6 +48,8 @@ export class PanelRepository {
    * @returns Array of panel groups with items
    */
   async listGroups(): Promise<WorkPanelGroup[]> {
+    const today = new Date().toISOString().slice(0, 10)
+
     // Fetch all data in parallel
     const [projectDocs, groupStateDocs, todoDocs, subItemDocs, commentDocs] = await Promise.all([
       this.storage.find<ProjectDocument & { _id: string }>(
@@ -121,8 +123,11 @@ export class PanelRepository {
 
     const groupIndex = new Map(groups.map((group) => [group.id, group]))
 
-    // Populate groups with todos
+    // Populate groups with todos (skip finished tasks older than today)
     for (const todo of todoDocs) {
+      const isFinished = todo.status === 'completed' || todo.status === 'cancelled'
+      if (isFinished && todo.date < today) continue
+
       const projectId = normalizeOptionalString(todo.projectId)
       const groupId = projectId ?? NO_PROJECT_GROUP
       const group = groupIndex.get(groupId) ?? groupIndex.get(NO_PROJECT_GROUP)
@@ -150,8 +155,11 @@ export class PanelRepository {
       })
     }
 
+    // Remove groups with no visible items
+    const visibleGroups = groups.filter((group) => group.items.length > 0)
+
     // Sort groups by earliest todo date
-    const groupsWithSort = groups.map((group) => {
+    const groupsWithSort = visibleGroups.map((group) => {
       const firstTodo = group.items[0]
       const earliest = firstTodo ? `${firstTodo.date}T${firstTodo.time}` : null
       return { group, earliest }
