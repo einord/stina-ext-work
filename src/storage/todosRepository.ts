@@ -45,24 +45,22 @@ export class TodosRepository {
    * @returns Array of matching todos
    */
   async list(options: ListTodosOptions = {}): Promise<WorkTodo[]> {
-    const { query, projectId, status, limit = 50, offset = 0 } = options
-
-    // Build query object for Storage API
-    const queryObj: Record<string, unknown> = {}
-    if (projectId !== undefined) {
-      queryObj.projectId = projectId
-    }
-    if (status) {
-      queryObj.status = status
-    }
+    const { query, includeCompleted = false, limit = 50, offset = 0 } = options
 
     const docs = await this.storage.find<TodoDocument & { _id: string }>(
       COLLECTIONS.TODOS,
-      queryObj,
+      {},
       { sort: { dueAt: 'asc' } }
     )
 
     let results = docs.map((doc) => this.toWorkTodo(doc._id, doc))
+
+    // Exclude completed/cancelled unless explicitly requested
+    if (!includeCompleted) {
+      results = results.filter(
+        (todo) => todo.status !== 'completed' && todo.status !== 'cancelled'
+      )
+    }
 
     // Apply text search filter if query provided
     if (query) {

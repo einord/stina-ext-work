@@ -8,10 +8,7 @@ import type { WorkTodo, WorkTodoInput, WorkTodoStatus } from '../types.js'
 
 interface ListTodosParams {
   query?: string
-  projectId?: string
-  status?: WorkTodoStatus
-  limit?: number
-  offset?: number
+  includeCompleted?: boolean
 }
 
 interface GetTodoParams {
@@ -106,15 +103,20 @@ export function createListTodosTool(): Tool {
   return {
     id: 'work_todos_list',
     name: 'List Todos',
-    description: 'List todos with optional filters.',
+    description:
+      'List all active todos across all projects. Returns only active todos (not_started/in_progress) by default. ' +
+      'Use query for text search in title/description. Set includeCompleted to true to also show completed/cancelled todos.',
     parameters: {
       type: 'object',
       properties: {
-        query: { type: 'string' },
-        projectId: { type: 'string' },
-        status: { type: 'string' },
-        limit: { type: 'number' },
-        offset: { type: 'number' },
+        query: {
+          type: 'string',
+          description: 'Optional text to search for in todo title or description.',
+        },
+        includeCompleted: {
+          type: 'boolean',
+          description: 'Set to true to include completed and cancelled todos. Default: false.',
+        },
       },
     },
     async execute(params: Record<string, unknown>, execContext: ExecutionContext): Promise<ToolResult> {
@@ -123,17 +125,10 @@ export function createListTodosTool(): Tool {
           return { success: false, error: 'User context required' }
         }
         const repo = new WorkRepository(execContext.userStorage)
-        const { query, projectId, status, limit, offset } = params as ListTodosParams
-        const statusCheck = validateStatus(status)
-        if (!statusCheck.ok) {
-          return { success: false, error: statusCheck.error }
-        }
+        const { query, includeCompleted } = params as ListTodosParams
         const todos = await repo.listTodos({
-          query,
-          projectId,
-          status: statusCheck.status,
-          limit,
-          offset,
+          query: query?.trim() || undefined,
+          includeCompleted: includeCompleted === true,
         })
         return { success: true, data: { count: todos.length, todos } }
       } catch (error) {

@@ -93,8 +93,7 @@ export interface ListProjectsOptions {
 
 export interface ListTodosOptions {
   query?: string
-  projectId?: string
-  status?: WorkTodoStatus
+  includeCompleted?: boolean
   limit?: number
   offset?: number
 }
