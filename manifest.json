@@ -2,7 +2,7 @@
   "$schema": "https://github.com/einord/stina/releases/download/stina-v0.23.0/extension-manifest.schema.json",
   "id": "work-manager",
   "name": "Work Manager",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "description": "Manage work todos and projects.",
   "type": "tools",
   "author": {
@@ -179,76 +179,73 @@
                   "as": "group",
                   "items": [
                     {
-                      "component": "Panel",
+                      "component": "Frame",
                       "title": "$group.title",
-                      "icon": "folder-01",
-                      "content": {
-                        "component": "VerticalStack",
-                        "gap": 0.5,
-                        "children": {
-                          "each": "$group.items",
-                          "as": "todo",
-                          "items": [
-                            {
-                              "component": "VerticalStack",
-                              "gap": 0.25,
-                              "children": [
-                                {
-                                  "component": "HorizontalStack",
-                                  "gap": 0.5,
-                                  "style": { "align-items": "center" },
-                                  "children": [
-                                    { "component": "Icon", "name": "$todo.icon" },
-                                    { "component": "Label", "text": "$todo.title", "style": { "flex": "1" } },
-                                    {
-                                      "component": "IconButton",
-                                      "icon": "pencil-edit-01",
-                                      "tooltip": "Edit todo",
-                                      "onClickAction": {
-                                        "action": "openEditTodo",
-                                        "params": { "todoId": "$todo.id" }
-                                      }
-                                    }
-                                  ]
-                                },
-                                {
-                                  "component": "HorizontalStack",
-                                  "gap": 0.5,
-                                  "style": { "align-items": "center" },
-                                  "children": [
-                                    {
-                                      "component": "Label",
-                                      "text": "$todo.dateTime",
-                                      "style": { "font-size": "0.85em", "opacity": "0.8" }
-                                    },
-                                    {
-                                      "component": "Pill",
-                                      "text": "$todo.statusLabel",
-                                      "variant": "$todo.statusVariant"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "component": "VerticalStack",
-                                  "gap": 0.25,
-                                  "style": { "padding-left": "1.5rem", "margin-top": "0.25rem" },
-                                  "children": {
-                                    "each": "$todo.comments",
-                                    "as": "comment",
-                                    "items": [
+                      "children": [
+                        {
+                          "component": "VerticalStack",
+                          "gap": 0.5,
+                          "children": {
+                            "each": "$group.items",
+                            "as": "todo",
+                            "items": [
+                              {
+                                "component": "VerticalStack",
+                                "gap": 0.25,
+                                "children": [
+                                  {
+                                    "component": "HorizontalStack",
+                                    "gap": 0.5,
+                                    "style": { "align-items": "center" },
+                                    "children": [
+                                      { "component": "Icon", "name": "$todo.icon" },
                                       {
                                         "component": "Label",
-                                        "text": "$comment.text",
-                                        "style": { "font-size": "0.8em", "opacity": "0.7" }
+                                        "text": "$todo.dateTime",
+                                        "style": { "font-size": "0.85em", "opacity": "0.8", "flex": "1" }
+                                      },
+                                      {
+                                        "component": "Pill",
+                                        "text": "$todo.statusLabel",
+                                        "variant": "$todo.statusVariant"
+                                      },
+                                      {
+                                        "component": "IconButton",
+                                        "icon": "pencil-edit-01",
+                                        "tooltip": "Edit todo",
+                                        "onClickAction": {
+                                          "action": "openEditTodo",
+                                          "params": { "todoId": "$todo.id" }
+                                        }
                                       }
                                     ]
+                                  },
+                                  {
+                                    "component": "Label",
+                                    "text": "$todo.title"
+                                  },
+                                  {
+                                    "component": "VerticalStack",
+                                    "gap": 0.25,
+                                    "style": { "padding-left": "1.5rem", "margin-top": "0.25rem" },
+                                    "children": {
+                                      "each": "$todo.comments",
+                                      "as": "comment",
+                                      "items": [
+                                        {
+                                          "component": "Label",
+                                          "text": "$comment.text",
+                                          "style": { "font-size": "0.8em", "opacity": "0.7" }
+                                        }
+                                      ]
+                                    }
                                   }
-                                }
-                              ]
-                            }
-                          ]
+                                ]
+                              }
+                            ]
+                          }
                         }
-                      }
+                      ]
                     }
                   ]
                 }
