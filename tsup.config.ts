@@ -6,6 +6,7 @@ export default defineConfig({
   dts: true,
   clean: true,
   sourcemap: true,
+  splitting: false,
   // Bundle everything into a single file for the extension
   // The runtime should be bundled so the extension is self-contained
   noExternal: [/.*/],
