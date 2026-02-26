@@ -130,7 +130,7 @@ export class RecurringWorkerManager {
           userId,
           restartPolicy: {
             type: 'on-failure',
-            maxRestarts: 0, // unlimited
+            maxRestarts: 0, // 0 = unlimited restarts per BackgroundWorkers API spec
             initialDelayMs: 5000,
             maxDelayMs: 60000,
           },

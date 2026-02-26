@@ -3,6 +3,22 @@ import type { RecurringTemplate, WorkTodo, WorkTodoInput } from '../types.js'
 import { WorkRepository } from '../storage/repository.js'
 import { computeUpcomingOccurrences } from './scheduler.js'
 
+/**
+ * Formats a Date as an ISO 8601 string preserving local timezone offset.
+ * e.g. "2025-03-10T09:00:00+01:00" instead of UTC "2025-03-10T08:00:00.000Z".
+ */
+const toLocalISOString = (date: Date): string => {
+  const offsetMs = date.getTimezoneOffset() * 60_000
+  const local = new Date(date.getTime() - offsetMs)
+  const iso = local.toISOString().slice(0, 19) // YYYY-MM-DDTHH:MM:SS
+  const totalMinutes = -date.getTimezoneOffset()
+  const sign = totalMinutes >= 0 ? '+' : '-'
+  const absMinutes = Math.abs(totalMinutes)
+  const hh = String(Math.floor(absMinutes / 60)).padStart(2, '0')
+  const mm = String(absMinutes % 60).padStart(2, '0')
+  return `${iso}${sign}${hh}:${mm}`
+}
+
 export interface RecurringHandlerCallbacks {
   onTodoCreated?: (todo: WorkTodo, userId: string, userStorage: StorageAPI) => void
   onTodoCancelled?: (todoId: string, userId: string) => void
@@ -77,14 +93,18 @@ const processTemplate = async (
     callbacks?.log?.info('Created todo from recurring template', {
       todoId: todo.id,
       templateId: template.id,
-      dueAt: dueAt.toISOString(),
+      dueAt: toLocalISOString(dueAt),
     })
 
     callbacks?.onTodoCreated?.(todo, userId, userStorage)
 
     // Update tracking
     latestGeneratedDueAt = dueAtMs
-    await repo.updateRecurringTemplateLastGenerated(template.id, dueAt.toISOString())
+    await repo.updateRecurringTemplateLastGenerated(template.id, toLocalISOString(dueAt))
+
+    // For skip_if_open and replace_open, only generate one todo per tick
+    // to avoid replacing/skipping the todo we just created
+    if (template.overlapPolicy !== 'allow_multiple') break
   }
 }
 
@@ -138,7 +158,7 @@ const createTodoFromTemplate = async (
   dueAt: Date,
 ): Promise<WorkTodo> => {
   const isAllDay = template.isAllDay
-  const dueAtIso = dueAt.toISOString()
+  const dueAtIso = toLocalISOString(dueAt)
 
   const input: WorkTodoInput & { recurringTemplateId: string } = {
     title: template.title,

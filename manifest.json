@@ -43,7 +43,8 @@
           "indexes": [
             "projectId",
             "status",
-            "dueAt"
+            "dueAt",
+            "recurringTemplateId"
           ]
         },
         "comments": {

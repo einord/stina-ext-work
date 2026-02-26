@@ -248,15 +248,13 @@ export class TodosRepository {
   async listByRecurringTemplateId(templateId: string): Promise<WorkTodo[]> {
     const docs = await this.storage.find<TodoDocument & { _id: string }>(
       COLLECTIONS.TODOS,
-      {},
+      { recurringTemplateId: templateId },
       { sort: { dueAt: 'asc' } }
     )
 
     return docs
       .filter(
-        (doc) =>
-          doc.recurringTemplateId === templateId &&
-          (doc.status === 'not_started' || doc.status === 'in_progress')
+        (doc) => doc.status === 'not_started' || doc.status === 'in_progress'
       )
       .map((doc) => this.toWorkTodo(doc._id, doc))
   }

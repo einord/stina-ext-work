@@ -106,8 +106,11 @@ export const computeUpcomingOccurrences = (
 
     if (matchesFrequency(checkDate, template)) {
       const occurrenceTime = combineDateTime(checkDate, template.timeOfDay)
-      // Only include future occurrences
-      if (occurrenceTime.getTime() > now.getTime()) {
+      // Include occurrences from start of today onward.
+      // Past occurrences within today are included so processTemplate can
+      // generate them if they haven't been created yet (avoids missing
+      // an occurrence when the poll runs seconds after the scheduled time).
+      if (occurrenceTime.getTime() >= startOfDay.getTime()) {
         results.push(occurrenceTime.getTime())
       }
     }

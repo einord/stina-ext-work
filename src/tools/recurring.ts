@@ -36,6 +36,32 @@ const normalizeLeadTimeUnit = (value: unknown): 'hours' | 'days' | undefined => 
   return undefined
 }
 
+/** Parses a value that should be a number (may arrive as string from AI tools). */
+const normalizeOptionalNumber = (value: unknown): number | null | undefined => {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed || trimmed.toLowerCase() === 'null') return null
+    const parsed = Number(trimmed)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+  return undefined
+}
+
+/** Normalizes a string value that may be "null" or empty to actual null. */
+const normalizeNullableString = (value: unknown): string | null | undefined => {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed || trimmed.toLowerCase() === 'null') return null
+    return trimmed
+  }
+  return undefined
+}
+
 /**
  * Creates a tool for listing recurring templates.
  * @returns The list recurring templates tool
@@ -159,7 +185,39 @@ export function createUpsertRecurringTemplateTool(
           ...(params as RecurringTemplateInput),
         }
 
-        // Normalize fields
+        // Normalize numeric fields that may arrive as strings from AI tools
+        if (params.leadTimeValue !== undefined) {
+          const v = normalizeOptionalNumber(params.leadTimeValue)
+          if (v !== undefined && v !== null && v < 0) {
+            return { success: false, error: 'leadTimeValue cannot be negative' }
+          }
+          input.leadTimeValue = (v ?? undefined) as number | undefined
+        }
+        if (params.dayOfMonth !== undefined) {
+          const v = normalizeOptionalNumber(params.dayOfMonth)
+          if (v !== undefined && v !== null && (v < 1 || v > 31 || !Number.isInteger(v))) {
+            return { success: false, error: 'dayOfMonth must be an integer between 1 and 31' }
+          }
+          input.dayOfMonth = v
+        }
+        if (params.monthOfYear !== undefined) {
+          const v = normalizeOptionalNumber(params.monthOfYear)
+          if (v !== undefined && v !== null && (v < 1 || v > 12 || !Number.isInteger(v))) {
+            return { success: false, error: 'monthOfYear must be an integer between 1 and 12' }
+          }
+          input.monthOfYear = v
+        }
+        if (params.reminderMinutes !== undefined) {
+          input.reminderMinutes = normalizeOptionalNumber(params.reminderMinutes)
+        }
+        if (params.projectId !== undefined) {
+          input.projectId = normalizeNullableString(params.projectId)
+        }
+        if (params.timeOfDay !== undefined) {
+          input.timeOfDay = normalizeNullableString(params.timeOfDay)
+        }
+
+        // Normalize enum-like fields
         if (params.frequency !== undefined) {
           const freq = normalizeFrequency(params.frequency)
           if (!freq) {
