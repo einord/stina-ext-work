@@ -14,9 +14,12 @@
   "engines": {
     "stina": ">=0.5.0"
   },
-  "platforms": ["web", "electron", "tui"],
+  "platforms": [
+    "web",
+    "electron",
+    "tui"
+  ],
   "main": "index.js",
-
   "permissions": [
     "tools.register",
     "actions.register",
@@ -25,26 +28,40 @@
     "storage.collections",
     "scheduler.register",
     "chat.message.write",
-    "user.profile.read"
+    "user.profile.read",
+    "background.workers"
   ],
-
   "contributes": {
     "storage": {
       "collections": {
         "projects": {
-          "indexes": ["name"]
+          "indexes": [
+            "name"
+          ]
         },
         "todos": {
-          "indexes": ["projectId", "status", "dueAt"]
+          "indexes": [
+            "projectId",
+            "status",
+            "dueAt"
+          ]
         },
         "comments": {
-          "indexes": ["todoId"]
+          "indexes": [
+            "todoId"
+          ]
         },
         "subitems": {
-          "indexes": ["todoId", "sortOrder"]
+          "indexes": [
+            "todoId",
+            "sortOrder"
+          ]
         },
         "settings": {},
-        "groupState": {}
+        "groupState": {},
+        "recurringTemplates": {
+          "indexes": ["enabled", "frequency"]
+        }
       }
     },
     "toolSettings": [
@@ -74,7 +91,9 @@
             "id": "name",
             "title": "Name",
             "type": "string",
-            "validation": { "required": true }
+            "validation": {
+              "required": true
+            }
           },
           {
             "id": "description",
@@ -92,7 +111,9 @@
           "data": {
             "settings": {
               "action": "getSettings",
-              "refreshOn": ["work.settings.changed"]
+              "refreshOn": [
+                "work.settings.changed"
+              ]
             }
           },
           "content": {
@@ -103,19 +124,46 @@
                 "component": "Select",
                 "label": "Default reminder",
                 "options": [
-                  { "label": "No reminder", "value": "null" },
-                  { "label": "At time", "value": "0" },
-                  { "label": "1 minute before", "value": "1" },
-                  { "label": "5 minutes before", "value": "5" },
-                  { "label": "10 minutes before", "value": "10" },
-                  { "label": "15 minutes before", "value": "15" },
-                  { "label": "30 minutes before", "value": "30" },
-                  { "label": "1 hour before", "value": "60" }
+                  {
+                    "label": "No reminder",
+                    "value": "null"
+                  },
+                  {
+                    "label": "At time",
+                    "value": "0"
+                  },
+                  {
+                    "label": "1 minute before",
+                    "value": "1"
+                  },
+                  {
+                    "label": "5 minutes before",
+                    "value": "5"
+                  },
+                  {
+                    "label": "10 minutes before",
+                    "value": "10"
+                  },
+                  {
+                    "label": "15 minutes before",
+                    "value": "15"
+                  },
+                  {
+                    "label": "30 minutes before",
+                    "value": "30"
+                  },
+                  {
+                    "label": "1 hour before",
+                    "value": "60"
+                  }
                 ],
                 "selectedValue": "$settings.defaultReminderMinutes",
                 "onChangeAction": {
                   "action": "updateSetting",
-                  "params": { "key": "defaultReminderMinutes", "value": "$value" }
+                  "params": {
+                    "key": "defaultReminderMinutes",
+                    "value": "$value"
+                  }
                 }
               },
               {
@@ -125,21 +173,36 @@
                 "value": "$settings.allDayReminderTime",
                 "onChangeAction": {
                   "action": "updateSetting",
-                  "params": { "key": "allDayReminderTime", "value": "$value" }
+                  "params": {
+                    "key": "allDayReminderTime",
+                    "value": "$value"
+                  }
                 }
               },
               {
                 "component": "Select",
                 "label": "Reminder language",
                 "options": [
-                  { "label": "Auto", "value": "auto" },
-                  { "label": "Swedish", "value": "sv" },
-                  { "label": "English", "value": "en" }
+                  {
+                    "label": "Auto",
+                    "value": "auto"
+                  },
+                  {
+                    "label": "Swedish",
+                    "value": "sv"
+                  },
+                  {
+                    "label": "English",
+                    "value": "en"
+                  }
                 ],
                 "selectedValue": "$settings.reminderLocale",
                 "onChangeAction": {
                   "action": "updateSetting",
-                  "params": { "key": "reminderLocale", "value": "$value" }
+                  "params": {
+                    "key": "reminderLocale",
+                    "value": "$value"
+                  }
                 }
               }
             ]
@@ -164,7 +227,10 @@
             },
             "editModal": {
               "action": "getEditModalState",
-              "refreshOn": ["work.modal.opened", "work.modal.closed"]
+              "refreshOn": [
+                "work.modal.opened",
+                "work.modal.closed"
+              ]
             }
           },
           "content": {
@@ -196,13 +262,22 @@
                                   {
                                     "component": "HorizontalStack",
                                     "gap": 0.5,
-                                    "style": { "align-items": "center" },
+                                    "style": {
+                                      "align-items": "center"
+                                    },
                                     "children": [
-                                      { "component": "Icon", "name": "$todo.icon" },
+                                      {
+                                        "component": "Icon",
+                                        "name": "$todo.icon"
+                                      },
                                       {
                                         "component": "Label",
                                         "text": "$todo.dateTime",
-                                        "style": { "font-size": "0.85em", "opacity": "0.8", "flex": "1" }
+                                        "style": {
+                                          "font-size": "0.85em",
+                                          "opacity": "0.8",
+                                          "flex": "1"
+                                        }
                                       },
                                       {
                                         "component": "Pill",
@@ -215,7 +290,9 @@
                                         "tooltip": "Edit todo",
                                         "onClickAction": {
                                           "action": "openEditTodo",
-                                          "params": { "todoId": "$todo.id" }
+                                          "params": {
+                                            "todoId": "$todo.id"
+                                          }
                                         }
                                       }
                                     ]
@@ -227,7 +304,10 @@
                                   {
                                     "component": "VerticalStack",
                                     "gap": 0.25,
-                                    "style": { "padding-left": "1.5rem", "margin-top": "0.25rem" },
+                                    "style": {
+                                      "padding-left": "1.5rem",
+                                      "margin-top": "0.25rem"
+                                    },
                                     "children": {
                                       "each": "$todo.comments",
                                       "as": "comment",
@@ -235,7 +315,10 @@
                                         {
                                           "component": "Label",
                                           "text": "$comment.text",
-                                          "style": { "font-size": "0.8em", "opacity": "0.7" }
+                                          "style": {
+                                            "font-size": "0.8em",
+                                            "opacity": "0.7"
+                                          }
                                         }
                                       ]
                                     }
@@ -264,58 +347,114 @@
                       "component": "TextInput",
                       "label": "Title",
                       "value": "$editModal.todo.title",
-                      "onChangeAction": { "action": "updateEditField", "params": { "field": "title", "value": "$value" } }
+                      "onChangeAction": {
+                        "action": "updateEditField",
+                        "params": {
+                          "field": "title",
+                          "value": "$value"
+                        }
+                      }
                     },
                     {
                       "component": "TextInput",
                       "label": "Description",
                       "value": "$editModal.todo.description",
-                      "onChangeAction": { "action": "updateEditField", "params": { "field": "description", "value": "$value" } }
+                      "onChangeAction": {
+                        "action": "updateEditField",
+                        "params": {
+                          "field": "description",
+                          "value": "$value"
+                        }
+                      }
                     },
                     {
                       "component": "IconPicker",
                       "label": "Icon",
                       "value": "$editModal.todo.icon",
-                      "onChangeAction": { "action": "updateEditField", "params": { "field": "icon", "value": "$value" } }
+                      "onChangeAction": {
+                        "action": "updateEditField",
+                        "params": {
+                          "field": "icon",
+                          "value": "$value"
+                        }
+                      }
                     },
                     {
                       "component": "Select",
                       "label": "Status",
                       "options": [
-                        { "label": "Not started", "value": "not_started" },
-                        { "label": "In progress", "value": "in_progress" },
-                        { "label": "Completed", "value": "completed" },
-                        { "label": "Cancelled", "value": "cancelled" }
+                        {
+                          "label": "Not started",
+                          "value": "not_started"
+                        },
+                        {
+                          "label": "In progress",
+                          "value": "in_progress"
+                        },
+                        {
+                          "label": "Completed",
+                          "value": "completed"
+                        },
+                        {
+                          "label": "Cancelled",
+                          "value": "cancelled"
+                        }
                       ],
                       "selectedValue": "$editModal.todo.status",
-                      "onChangeAction": { "action": "updateEditField", "params": { "field": "status", "value": "$value" } }
+                      "onChangeAction": {
+                        "action": "updateEditField",
+                        "params": {
+                          "field": "status",
+                          "value": "$value"
+                        }
+                      }
                     },
                     {
                       "component": "TextInput",
                       "label": "Date (YYYY-MM-DD)",
                       "placeholder": "2025-01-15",
                       "value": "$editModal.todo.date",
-                      "onChangeAction": { "action": "updateEditField", "params": { "field": "date", "value": "$value" } }
+                      "onChangeAction": {
+                        "action": "updateEditField",
+                        "params": {
+                          "field": "date",
+                          "value": "$value"
+                        }
+                      }
                     },
                     {
                       "component": "TextInput",
                       "label": "Time (HH:MM)",
                       "placeholder": "14:00",
                       "value": "$editModal.todo.time",
-                      "onChangeAction": { "action": "updateEditField", "params": { "field": "time", "value": "$value" } }
+                      "onChangeAction": {
+                        "action": "updateEditField",
+                        "params": {
+                          "field": "time",
+                          "value": "$value"
+                        }
+                      }
                     },
                     {
                       "component": "Toggle",
                       "label": "All day",
                       "checked": "$editModal.todo.allDay",
-                      "onChangeAction": { "action": "updateEditField", "params": { "field": "allDay", "value": "$value" } }
+                      "onChangeAction": {
+                        "action": "updateEditField",
+                        "params": {
+                          "field": "allDay",
+                          "value": "$value"
+                        }
+                      }
                     }
                   ]
                 },
                 "footer": {
                   "component": "HorizontalStack",
                   "gap": 0.5,
-                  "style": { "justify-content": "flex-end" },
+                  "style": {
+                    "justify-content": "flex-end"
+                  },
                   "children": [
                     {
                       "component": "Button",
@@ -327,7 +466,9 @@
                       "text": "Save",
                       "onClickAction": {
                         "action": "saveTodo",
-                        "params": { "todoId": "$editModal.todo.id" }
+                        "params": {
+                          "todoId": "$editModal.todo.id"
+                        }
                       }
                     }
                   ]
@@ -342,12 +483,14 @@
       {
         "id": "work_projects_list",
         "name": "List Projects",
-        "description": "List work projects."
+        "description": "List work projects.",
+        "requiresConfirmation": false
       },
       {
         "id": "work_projects_get",
         "name": "Get Project",
-        "description": "Get a project by ID."
+        "description": "Get a project by ID.",
+        "requiresConfirmation": false
       },
       {
         "id": "work_projects_upsert",
@@ -362,12 +505,14 @@
       {
         "id": "work_todos_list",
         "name": "List Todos",
-        "description": "List all active todos across all projects. Use query for text search. Set includeCompleted to true to also show completed/cancelled todos."
+        "description": "List all active todos across all projects. Use query for text search. Set includeCompleted to true to also show completed/cancelled todos.",
+        "requiresConfirmation": false
       },
       {
         "id": "work_todos_get",
         "name": "Get Todo",
-        "description": "Get todo details by ID."
+        "description": "Get todo details by ID.",
+        "requiresConfirmation": false
       },
       {
         "id": "work_todos_upsert",
@@ -402,17 +547,41 @@
       {
         "id": "work_settings_list",
         "name": "List Work Settings",
-        "description": "List settings entries for the Work extension."
+        "description": "List settings entries for the Work extension.",
+        "requiresConfirmation": false
       },
       {
         "id": "work_settings_get",
         "name": "Get Work Settings",
-        "description": "Get work extension settings."
+        "description": "Get work extension settings.",
+        "requiresConfirmation": false
       },
       {
         "id": "work_settings_update",
         "name": "Update Work Settings",
         "description": "Update work extension settings."
+      },
+      {
+        "id": "work_recurring_list",
+        "name": "List Recurring Templates",
+        "description": "List recurring todo templates.",
+        "requiresConfirmation": false
+      },
+      {
+        "id": "work_recurring_get",
+        "name": "Get Recurring Template",
+        "description": "Get a recurring template by ID.",
+        "requiresConfirmation": false
+      },
+      {
+        "id": "work_recurring_upsert",
+        "name": "Add/Update Recurring Template",
+        "description": "Create or update a recurring todo template."
+      },
+      {
+        "id": "work_recurring_delete",
+        "name": "Delete Recurring Template",
+        "description": "Delete a recurring template by ID."
       }
     ],
     "prompts": [
@@ -420,8 +589,8 @@
         "id": "work-manager-instructions",
         "section": "tools",
         "i18n": {
-          "en": "You have access to Work Manager tools for projects, todos, subitems, and comments. Use work_projects_list/get/upsert/delete to manage projects. Use work_todos_list to find todos — it returns all active todos across all projects by default (no need to specify projectId or status). Use optional query parameter for text search. Set includeCompleted to true only when you need completed/cancelled todos. Use work_todos_get to get full details for a specific todo by ID. Use work_todos_upsert to create/update todos; dueAt must be ISO 8601 with timezone. Keep date/time fields consistent with dueAt. Use work_subitems_add/delete and work_subitem_toggle for task steps. Use work_comments_add/delete to keep notes. You can adjust default reminders via work_settings_get/update (defaultReminderMinutes, allDayReminderTime, reminderLocale). When a reminder instruction arrives from the system, respond directly to the user with a friendly reminder tailored to the todo content.",
-          "sv": "Du har tillgång till Work Manager-verktyg för projekt, att-göra-poster, delmoment och kommentarer. Använd work_projects_list/get/upsert/delete för projekt. Använd work_todos_list för att hitta todos — den returnerar alla aktiva todos från alla projekt som standard (du behöver inte ange projectId eller status). Använd query-parametern för textsökning. Sätt includeCompleted till true bara när du behöver avslutade todos. Använd work_todos_get för att hämta detaljer om en specifik todo via ID. Använd work_todos_upsert för att skapa/uppdatera todos; dueAt måste vara ISO 8601 med tidszon. Håll date/time konsekvent med dueAt. Använd work_subitems_add/delete och work_subitem_toggle för delmoment. Använd work_comments_add/delete för anteckningar. Du kan justera standardpåminnelser via work_settings_get/update (defaultReminderMinutes, allDayReminderTime, reminderLocale). När ett påminnelsemeddelande kommer från systemet, svara direkt till användaren med en vänlig påminnelse anpassad till innehållet."
+          "en": "You have access to Work Manager tools for projects, todos, subitems, and comments. Use work_projects_list/get/upsert/delete to manage projects. Use work_todos_list to find todos — it returns all active todos across all projects by default (no need to specify projectId or status). Use optional query parameter for text search. Set includeCompleted to true only when you need completed/cancelled todos. Use work_todos_get to get full details for a specific todo by ID. Use work_todos_upsert to create/update todos; dueAt must be ISO 8601 with timezone. Keep date/time fields consistent with dueAt. Use work_subitems_add/delete and work_subitem_toggle for task steps. Use work_comments_add/delete to keep notes. You can adjust default reminders via work_settings_get/update (defaultReminderMinutes, allDayReminderTime, reminderLocale). When a reminder instruction arrives from the system, respond directly to the user with a friendly reminder tailored to the todo content. Use work_recurring_list/get/upsert/delete to manage recurring todo templates. When creating a recurring template, frequency (daily/weekly/monthly/yearly) is required. For weekly, specify daysOfWeek as array (0=Sun...6=Sat). For monthly, set dayOfMonth and optionally months array. For yearly, set monthOfYear and dayOfMonth. Use timeOfDay (HH:MM) or isAllDay for timing. overlapPolicy controls behavior when a previous todo is still open: skip_if_open (default), allow_multiple, or replace_open.",
+          "sv": "Du har tillgång till Work Manager-verktyg för projekt, att-göra-poster, delmoment och kommentarer. Använd work_projects_list/get/upsert/delete för projekt. Använd work_todos_list för att hitta todos — den returnerar alla aktiva todos från alla projekt som standard (du behöver inte ange projectId eller status). Använd query-parametern för textsökning. Sätt includeCompleted till true bara när du behöver avslutade todos. Använd work_todos_get för att hämta detaljer om en specifik todo via ID. Använd work_todos_upsert för att skapa/uppdatera todos; dueAt måste vara ISO 8601 med tidszon. Håll date/time konsekvent med dueAt. Använd work_subitems_add/delete och work_subitem_toggle för delmoment. Använd work_comments_add/delete för anteckningar. Du kan justera standardpåminnelser via work_settings_get/update (defaultReminderMinutes, allDayReminderTime, reminderLocale). När ett påminnelsemeddelande kommer från systemet, svara direkt till användaren med en vänlig påminnelse anpassad till innehållet. Använd work_recurring_list/get/upsert/delete för att hantera återkommande mallar. Vid skapande krävs frequency (daily/weekly/monthly/yearly). För weekly, ange daysOfWeek som array (0=sön...6=lör). För monthly, ange dayOfMonth och valfritt months-array. För yearly, ange monthOfYear och dayOfMonth. Använd timeOfDay (HH:MM) eller isAllDay för tidpunkt. overlapPolicy styr beteendet när en tidigare todo fortfarande är öppen: skip_if_open (standard), allow_multiple eller replace_open."
         }
       }
     ]

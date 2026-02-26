@@ -29,6 +29,7 @@ export interface TodoDocument {
   time: string
   allDay: boolean
   reminderMinutes?: number | null
+  recurringTemplateId?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -70,5 +71,31 @@ export interface SettingsDocument {
 export interface GroupStateDocument {
   groupId: string
   collapsed: boolean
+  updatedAt: string
+}
+
+/**
+ * Recurring template document stored in the 'recurringTemplates' collection.
+ */
+export interface RecurringTemplateDocument {
+  title: string
+  description?: string
+  projectId?: string | null
+  icon: string
+  frequency: string
+  daysOfWeek?: number[] | null
+  dayOfMonth?: number | null
+  months?: number[] | null
+  monthOfYear?: number | null
+  timeOfDay?: string | null
+  isAllDay: boolean
+  leadTimeValue: number
+  leadTimeUnit: string
+  leadTimeMinutes: number
+  reminderMinutes?: number | null
+  overlapPolicy: string
+  lastGeneratedDueAt?: string | null
+  enabled: boolean
+  createdAt: string
   updatedAt: string
 }

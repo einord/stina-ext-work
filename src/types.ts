@@ -54,6 +54,7 @@ export interface WorkTodo {
   time: string
   allDay: boolean
   reminderMinutes?: number | null
+  recurringTemplateId?: string | null
   createdAt: string
   updatedAt: string
   comments?: WorkComment[]
@@ -71,6 +72,7 @@ export interface WorkTodoInput {
   time?: string
   allDay?: boolean
   reminderMinutes?: number | null
+  recurringTemplateId?: string | null
 }
 
 export interface WorkSettings {
@@ -120,4 +122,54 @@ export interface WorkPanelGroup {
   title: string
   collapsed: boolean
   items: WorkTodoPanelItem[]
+}
+
+export type RecurringFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly'
+export type RecurringOverlapPolicy = 'skip_if_open' | 'allow_multiple' | 'replace_open'
+
+export interface RecurringTemplate {
+  id: string
+  title: string
+  description?: string
+  projectId?: string | null
+  icon: string
+  frequency: RecurringFrequency
+  daysOfWeek?: number[] | null       // 0-6 (Sun-Sat) for weekly
+  dayOfMonth?: number | null          // 1-31 for monthly/yearly
+  months?: number[] | null            // 1-12 restriction for monthly
+  monthOfYear?: number | null         // 1-12 for yearly
+  timeOfDay?: string | null           // HH:MM
+  isAllDay: boolean
+  leadTimeValue: number               // numeric value
+  leadTimeUnit: 'hours' | 'days'      // unit for lead time
+  leadTimeMinutes: number             // computed total in minutes
+  reminderMinutes?: number | null
+  overlapPolicy: RecurringOverlapPolicy
+  lastGeneratedDueAt?: string | null  // ISO timestamp of last generated occurrence
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface RecurringTemplateInput {
+  title?: string
+  description?: string | null
+  projectId?: string | null
+  icon?: string
+  frequency?: RecurringFrequency
+  daysOfWeek?: number[] | null
+  dayOfMonth?: number | null
+  months?: number[] | null
+  monthOfYear?: number | null
+  timeOfDay?: string | null
+  isAllDay?: boolean
+  leadTimeValue?: number
+  leadTimeUnit?: 'hours' | 'days'
+  reminderMinutes?: number | null
+  overlapPolicy?: RecurringOverlapPolicy
+  enabled?: boolean
+}
+
+export interface ListRecurringTemplatesOptions {
+  enabledOnly?: boolean
 }

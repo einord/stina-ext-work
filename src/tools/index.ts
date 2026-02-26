@@ -21,3 +21,9 @@ export {
   createGetSettingsTool,
   createUpdateSettingsTool,
 } from './settings.js'
+export {
+  createListRecurringTemplatesTool,
+  createGetRecurringTemplateTool,
+  createUpsertRecurringTemplateTool,
+  createDeleteRecurringTemplateTool,
+} from './recurring.js'
