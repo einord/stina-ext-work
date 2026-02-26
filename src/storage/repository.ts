@@ -6,7 +6,10 @@
 import type { StorageAPI } from '@stina/extension-api/runtime'
 import type {
   ListProjectsOptions,
+  ListRecurringTemplatesOptions,
   ListTodosOptions,
+  RecurringTemplate,
+  RecurringTemplateInput,
   WorkComment,
   WorkCommentInput,
   WorkPanelGroup,
@@ -24,6 +27,7 @@ import { PanelRepository } from './panelRepository.js'
 import { ProjectsRepository } from './projectsRepository.js'
 import { SettingsRepository } from './settingsRepository.js'
 import { SubItemsRepository } from './subItemsRepository.js'
+import { RecurringTemplatesRepository } from './recurringTemplatesRepository.js'
 import { TodosRepository } from './todosRepository.js'
 
 /**
@@ -38,6 +42,7 @@ export class WorkRepository {
   private readonly todos: TodosRepository
   private readonly settings: SettingsRepository
   private readonly panel: PanelRepository
+  private readonly recurringTemplates: RecurringTemplatesRepository
 
   /**
    * Creates a WorkRepository instance.
@@ -51,6 +56,7 @@ export class WorkRepository {
     this.todos = new TodosRepository(storage, this.comments, this.subItems, this.projects)
     this.settings = new SettingsRepository(storage)
     this.panel = new PanelRepository(storage)
+    this.recurringTemplates = new RecurringTemplatesRepository(storage)
   }
 
   // Project operations
@@ -251,5 +257,65 @@ export class WorkRepository {
    */
   async setGroupCollapsed(groupId: string, collapsed: boolean): Promise<boolean> {
     return this.panel.setGroupCollapsed(groupId, collapsed)
+  }
+
+  // Recurring template operations
+
+  /**
+   * @summary Lists recurring templates with optional filtering by enabled status.
+   * @param options - Filtering options
+   * @returns Array of recurring templates
+   */
+  async listRecurringTemplates(options?: ListRecurringTemplatesOptions): Promise<RecurringTemplate[]> {
+    return this.recurringTemplates.list(options)
+  }
+
+  /**
+   * @summary Gets a recurring template by its ID.
+   * @param id - The template ID
+   * @returns The recurring template or null if not found
+   */
+  async getRecurringTemplate(id: string): Promise<RecurringTemplate | null> {
+    return this.recurringTemplates.get(id)
+  }
+
+  /**
+   * @summary Creates or updates a recurring template.
+   * When creating, title, icon, and frequency are required.
+   * @param id - Optional template ID
+   * @param input - Template data
+   * @returns The created/updated recurring template
+   */
+  async upsertRecurringTemplate(id: string | undefined, input: RecurringTemplateInput): Promise<RecurringTemplate> {
+    return this.recurringTemplates.upsert(id, input)
+  }
+
+  /**
+   * @summary Deletes a recurring template by its ID.
+   * @param id - The template ID
+   * @returns true if deleted
+   */
+  async deleteRecurringTemplate(id: string): Promise<boolean> {
+    return this.recurringTemplates.delete(id)
+  }
+
+  /**
+   * @summary Updates the lastGeneratedDueAt timestamp for a recurring template.
+   * Used after generating a todo from the template.
+   * @param id - The template ID
+   * @param lastGeneratedDueAt - ISO timestamp of the last generated occurrence
+   */
+  async updateRecurringTemplateLastGenerated(id: string, lastGeneratedDueAt: string): Promise<void> {
+    return this.recurringTemplates.updateLastGenerated(id, lastGeneratedDueAt)
+  }
+
+  /**
+   * @summary Lists active (not_started or in_progress) todos linked to a recurring template.
+   * Used for evaluating overlap policies before generating new recurring todos.
+   * @param templateId - The recurring template ID
+   * @returns Array of active todos linked to the template
+   */
+  async listActiveTodosByTemplateId(templateId: string): Promise<WorkTodo[]> {
+    return this.todos.listByRecurringTemplateId(templateId)
   }
 }

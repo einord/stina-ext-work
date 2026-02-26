@@ -22,10 +22,15 @@ import {
   createListSettingsTool,
   createGetSettingsTool,
   createUpdateSettingsTool,
+  createListRecurringTemplatesTool,
+  createGetRecurringTemplateTool,
+  createUpsertRecurringTemplateTool,
+  createDeleteRecurringTemplateTool,
 } from './tools/index.js'
 import { WorkRepository } from './storage/index.js'
 import { buildInstructionMessage, isTodoActive, resolveReminderAt } from './reminders.js'
 import type { SchedulerFirePayload } from './reminders.js'
+import { RecurringWorkerManager, type BackgroundWorkersAPI } from './recurring/index.js'
 import type { WorkTodo, WorkTodoInput } from './types.js'
 
 type EventsApi = { emit: (name: string, payload?: Record<string, unknown>) => Promise<void> }
@@ -95,6 +100,7 @@ function activate(context: ExtensionContext): Disposable {
   const chat = (context as ExtensionContext & { chat?: ChatAPI }).chat
   const userApi = (context as ExtensionContext & { user?: UserApi }).user
   const actionsApi = (context as ExtensionContext & { actions?: ActionsApi }).actions
+  const backgroundWorkers = (context as ExtensionContext & { backgroundWorkers?: BackgroundWorkersAPI }).backgroundWorkers
 
   const getReminderJobId = (todoId: string, userId: string): string => {
     return `todo.reminder:${userId}:${todoId}`
@@ -274,6 +280,36 @@ function activate(context: ExtensionContext): Disposable {
     await chat.appendInstruction({ text: message, userId: currentUserId })
     context.log.info('Scheduler fire: reminder sent', { todoId })
   })
+
+  // --- Recurring Worker Manager ---
+  let recurringWorkerManager: RecurringWorkerManager | null = null
+
+  if (backgroundWorkers && context.storage) {
+    recurringWorkerManager = new RecurringWorkerManager({
+      backgroundWorkers,
+      extensionStorage: context.storage,
+      callbacks: {
+        onTodoCreated: (todo, userId, userStorage) => {
+          emitTodoRefresh()
+          void scheduleTodo(todo, userId, userStorage)
+        },
+        onTodoCancelled: (todoId, userId) => {
+          emitTodoRefresh()
+          void cancelTodo(todoId, userId)
+        },
+      },
+      log: context.log,
+    })
+
+    // Restore workers for users who had active recurring templates before restart
+    void recurringWorkerManager.restoreWorkers().catch((err) =>
+      context.log.warn('Failed to restore recurring workers', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+    )
+  } else {
+    context.log.info('BackgroundWorkers API not available; recurring templates polling disabled')
+  }
 
   // In-memory modal state per user
   const MAX_MODAL_STATES = 100
@@ -504,6 +540,26 @@ function activate(context: ExtensionContext): Disposable {
         // Note: Scheduling happens in the action or would need execContext
       })
     ),
+
+    context.tools!.register(createListRecurringTemplatesTool()),
+    context.tools!.register(createGetRecurringTemplateTool()),
+    context.tools!.register(
+      createUpsertRecurringTemplateTool((_template, execContext) => {
+        emitTodoRefresh()
+        if (recurringWorkerManager && execContext.userId) {
+          void recurringWorkerManager.syncWorkerForUser(execContext.userId, execContext.userStorage)
+        }
+      })
+    ),
+    context.tools!.register(
+      createDeleteRecurringTemplateTool((_templateId, execContext) => {
+        emitTodoRefresh()
+        if (recurringWorkerManager && execContext.userId) {
+          void recurringWorkerManager.syncWorkerForUser(execContext.userId, execContext.userStorage)
+        }
+      })
+    ),
+
     ...(schedulerDisposable ? [schedulerDisposable] : []),
   ]
 
@@ -524,13 +580,21 @@ function activate(context: ExtensionContext): Disposable {
       'work_settings_list',
       'work_settings_get',
       'work_settings_update',
+      'work_recurring_list',
+      'work_recurring_get',
+      'work_recurring_upsert',
+      'work_recurring_delete',
     ],
     actions: actionsApi ? ['getGroups', 'getSettings', 'updateSetting', 'getEditModalState', 'openEditTodo', 'updateEditField', 'closeEditModal', 'saveTodo'] : [],
+    recurringWorkerEnabled: !!recurringWorkerManager,
   })
 
   return {
     dispose: () => {
       editModalState.clear()
+      if (recurringWorkerManager) {
+        void recurringWorkerManager.dispose()
+      }
       for (const disposable of disposables) {
         disposable.dispose()
       }

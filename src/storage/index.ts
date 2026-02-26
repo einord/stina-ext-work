@@ -12,4 +12,5 @@ export type {
   SubItemDocument,
   SettingsDocument,
   GroupStateDocument,
+  RecurringTemplateDocument,
 } from './types.js'

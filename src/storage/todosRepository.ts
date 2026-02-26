@@ -126,6 +126,8 @@ export class TodosRepository {
         allDay: input.allDay ?? existing.allDay,
         reminderMinutes:
           input.reminderMinutes !== undefined ? input.reminderMinutes : existing.reminderMinutes,
+        recurringTemplateId:
+          input.recurringTemplateId !== undefined ? input.recurringTemplateId : existing.recurringTemplateId,
         createdAt: existing.createdAt,
         updatedAt: now,
       }
@@ -143,6 +145,7 @@ export class TodosRepository {
         time: derived.time,
         allDay: merged.allDay,
         reminderMinutes: merged.reminderMinutes,
+        recurringTemplateId: merged.recurringTemplateId,
         createdAt: merged.createdAt,
         updatedAt: now,
       }
@@ -182,6 +185,7 @@ export class TodosRepository {
       time: derived.time,
       allDay: input.allDay ?? false,
       reminderMinutes: input.reminderMinutes ?? null,
+      recurringTemplateId: input.recurringTemplateId ?? null,
       createdAt: now,
       updatedAt: now,
     }
@@ -200,6 +204,7 @@ export class TodosRepository {
       time: derived.time,
       allDay: input.allDay ?? false,
       reminderMinutes: input.reminderMinutes ?? null,
+      recurringTemplateId: input.recurringTemplateId ?? null,
       createdAt: now,
       updatedAt: now,
     }
@@ -231,6 +236,27 @@ export class TodosRepository {
   async has(id: string): Promise<boolean> {
     const doc = await this.storage.get(COLLECTIONS.TODOS, id)
     return doc !== undefined
+  }
+
+  /**
+   * @summary Lists active todos linked to a specific recurring template.
+   * Returns todos where recurringTemplateId matches and status is 'not_started' or 'in_progress'.
+   * Used for evaluating overlap policies before generating new recurring todos.
+   * @param templateId - The recurring template ID
+   * @returns Array of active todos linked to the template
+   */
+  async listByRecurringTemplateId(templateId: string): Promise<WorkTodo[]> {
+    const docs = await this.storage.find<TodoDocument & { _id: string }>(
+      COLLECTIONS.TODOS,
+      { recurringTemplateId: templateId },
+      { sort: { dueAt: 'asc' } }
+    )
+
+    return docs
+      .filter(
+        (doc) => doc.status === 'not_started' || doc.status === 'in_progress'
+      )
+      .map((doc) => this.toWorkTodo(doc._id, doc))
   }
 
   /**
@@ -270,6 +296,7 @@ export class TodosRepository {
       time: doc.time,
       allDay: doc.allDay,
       reminderMinutes: doc.reminderMinutes,
+      recurringTemplateId: doc.recurringTemplateId,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     }
