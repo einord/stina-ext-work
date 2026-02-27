@@ -47,14 +47,12 @@ export const matchesFrequency = (date: Date, template: RecurringTemplate): boole
     }
 
     case 'monthly': {
-      // Check day of month
-      const targetDay = template.dayOfMonth
-      if (targetDay != null) {
-        // Handle months shorter than targetDay (e.g., day 31 in February → last day)
-        const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
-        const effectiveDay = Math.min(targetDay, lastDayOfMonth)
-        if (dayOfMonth !== effectiveDay) return false
-      }
+      // Check day of month (default to 1st if not specified)
+      const targetDay = template.dayOfMonth ?? 1
+      // Handle months shorter than targetDay (e.g., day 31 in February → last day)
+      const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+      const effectiveDay = Math.min(targetDay, lastDayOfMonth)
+      if (dayOfMonth !== effectiveDay) return false
       // Check month restriction
       const allowedMonths = template.months
       if (allowedMonths && allowedMonths.length > 0) {
@@ -64,14 +62,13 @@ export const matchesFrequency = (date: Date, template: RecurringTemplate): boole
     }
 
     case 'yearly': {
-      const targetMonth = template.monthOfYear
-      const targetDay = template.dayOfMonth
-      if (targetMonth != null && month !== targetMonth) return false
-      if (targetDay != null) {
-        const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
-        const effectiveDay = Math.min(targetDay, lastDayOfMonth)
-        if (dayOfMonth !== effectiveDay) return false
-      }
+      // Default to January 1st if not specified
+      const targetMonth = template.monthOfYear ?? 1
+      const targetDay = template.dayOfMonth ?? 1
+      if (month !== targetMonth) return false
+      const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+      const effectiveDay = Math.min(targetDay, lastDayOfMonth)
+      if (dayOfMonth !== effectiveDay) return false
       return true
     }
 

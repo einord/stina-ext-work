@@ -181,64 +181,163 @@ export function createUpsertRecurringTemplateTool(
         if (!execContext.userId) return { success: false, error: 'User context required' }
         const repo = new WorkRepository(execContext.userStorage)
 
-        const input: RecurringTemplateInput & { id?: string } = {
-          ...(params as RecurringTemplateInput),
-        }
-
-        // Normalize numeric fields that may arrive as strings from AI tools
-        if (params.leadTimeValue !== undefined) {
-          const v = normalizeOptionalNumber(params.leadTimeValue)
-          if (v !== undefined && v !== null && v < 0) {
-            return { success: false, error: 'leadTimeValue cannot be negative' }
-          }
-          input.leadTimeValue = (v ?? undefined) as number | undefined
-        }
-        if (params.dayOfMonth !== undefined) {
-          const v = normalizeOptionalNumber(params.dayOfMonth)
-          if (v !== undefined && v !== null && (v < 1 || v > 31 || !Number.isInteger(v))) {
-            return { success: false, error: 'dayOfMonth must be an integer between 1 and 31' }
-          }
-          input.dayOfMonth = v
-        }
-        if (params.monthOfYear !== undefined) {
-          const v = normalizeOptionalNumber(params.monthOfYear)
-          if (v !== undefined && v !== null && (v < 1 || v > 12 || !Number.isInteger(v))) {
-            return { success: false, error: 'monthOfYear must be an integer between 1 and 12' }
-          }
-          input.monthOfYear = v
-        }
-        if (params.reminderMinutes !== undefined) {
-          input.reminderMinutes = normalizeOptionalNumber(params.reminderMinutes)
-        }
-        if (params.projectId !== undefined) {
-          input.projectId = normalizeNullableString(params.projectId)
-        }
-        if (params.timeOfDay !== undefined) {
-          input.timeOfDay = normalizeNullableString(params.timeOfDay)
-        }
-
-        // Normalize enum-like fields
+        // --- Normalize frequency FIRST (needed to know which fields are relevant) ---
+        let frequency: RecurringFrequency | undefined
         if (params.frequency !== undefined) {
-          const freq = normalizeFrequency(params.frequency)
-          if (!freq) {
+          frequency = normalizeFrequency(params.frequency)
+          if (!frequency) {
             return { success: false, error: `Invalid frequency "${String(params.frequency)}". Allowed: ${FREQUENCY_OPTIONS.join(', ')}` }
           }
-          input.frequency = freq
         }
+
+        // --- Normalize overlap policy ---
+        let overlapPolicy: RecurringOverlapPolicy | undefined
         if (params.overlapPolicy !== undefined) {
-          const policy = normalizeOverlapPolicy(params.overlapPolicy)
-          if (!policy) {
+          overlapPolicy = normalizeOverlapPolicy(params.overlapPolicy)
+          if (!overlapPolicy) {
             return { success: false, error: `Invalid overlapPolicy "${String(params.overlapPolicy)}". Allowed: ${OVERLAP_OPTIONS.join(', ')}` }
           }
-          input.overlapPolicy = policy
         }
+
+        // --- Normalize lead time (value before unit, since unit validation depends on value) ---
+        let leadTimeValue: number | undefined
+        if (params.leadTimeValue !== undefined) {
+          const v = normalizeOptionalNumber(params.leadTimeValue)
+          if (v === null || v === 0) {
+            leadTimeValue = 0
+          } else if (v !== undefined) {
+            if (v < 0) return { success: false, error: 'leadTimeValue cannot be negative' }
+            leadTimeValue = v
+          }
+        }
+
+        let leadTimeUnit: 'hours' | 'days' | undefined
         if (params.leadTimeUnit !== undefined) {
           const unit = normalizeLeadTimeUnit(params.leadTimeUnit)
           if (!unit) {
-            return { success: false, error: `Invalid leadTimeUnit "${String(params.leadTimeUnit)}". Allowed: hours, days` }
+            // Only reject invalid unit if leadTimeValue is actually meaningful
+            if (leadTimeValue !== undefined && leadTimeValue > 0) {
+              return { success: false, error: `Invalid leadTimeUnit "${String(params.leadTimeUnit)}". Allowed: hours, days` }
+            }
+            leadTimeUnit = 'days'
+          } else {
+            leadTimeUnit = unit
           }
-          input.leadTimeUnit = unit
         }
+
+        // --- Normalize numeric fields, treating 0 as null for day/month fields ---
+        let dayOfMonth: number | null | undefined
+        if (params.dayOfMonth !== undefined) {
+          const v = normalizeOptionalNumber(params.dayOfMonth)
+          if (v === 0 || v === null) {
+            dayOfMonth = null
+          } else if (v !== undefined) {
+            if (v < 1 || v > 31 || !Number.isInteger(v)) {
+              return { success: false, error: 'dayOfMonth must be an integer between 1 and 31' }
+            }
+            dayOfMonth = v
+          }
+        }
+
+        let monthOfYear: number | null | undefined
+        if (params.monthOfYear !== undefined) {
+          const v = normalizeOptionalNumber(params.monthOfYear)
+          if (v === 0 || v === null) {
+            monthOfYear = null
+          } else if (v !== undefined) {
+            if (v < 1 || v > 12 || !Number.isInteger(v)) {
+              return { success: false, error: 'monthOfYear must be an integer between 1 and 12' }
+            }
+            monthOfYear = v
+          }
+        }
+
+        // --- Normalize reminderMinutes (0 = no reminder) ---
+        let reminderMinutes: number | null | undefined
+        if (params.reminderMinutes !== undefined) {
+          const v = normalizeOptionalNumber(params.reminderMinutes)
+          reminderMinutes = (v === 0 || v === null) ? null : v
+        }
+
+        // --- Normalize and validate arrays ---
+        let daysOfWeek: number[] | null | undefined
+        if (params.daysOfWeek !== undefined) {
+          if (Array.isArray(params.daysOfWeek)) {
+            const arr = params.daysOfWeek.map(Number).filter((n) => Number.isFinite(n))
+            if (arr.length === 0) {
+              daysOfWeek = null
+            } else {
+              if (!arr.every((d) => Number.isInteger(d) && d >= 0 && d <= 6)) {
+                return { success: false, error: 'daysOfWeek values must be integers between 0 (Sunday) and 6 (Saturday)' }
+              }
+              daysOfWeek = arr
+            }
+          } else if (params.daysOfWeek === null) {
+            daysOfWeek = null
+          }
+        }
+
+        let months: number[] | null | undefined
+        if (params.months !== undefined) {
+          if (Array.isArray(params.months)) {
+            const arr = params.months.map(Number).filter((n) => Number.isFinite(n))
+            if (arr.length === 0) {
+              months = null
+            } else {
+              if (!arr.every((m) => Number.isInteger(m) && m >= 1 && m <= 12)) {
+                return { success: false, error: 'months values must be integers between 1 and 12' }
+              }
+              months = arr
+            }
+          } else if (params.months === null) {
+            months = null
+          }
+        }
+
+        // --- Normalize boolean fields (may arrive as strings from AI) ---
+        const normalizeBoolean = (v: unknown): boolean | undefined => {
+          if (typeof v === 'boolean') return v
+          if (typeof v === 'string') {
+            const s = v.trim().toLowerCase()
+            if (s === 'true') return true
+            if (s === 'false') return false
+          }
+          return undefined
+        }
+
+        const isAllDay = params.isAllDay !== undefined ? normalizeBoolean(params.isAllDay) : undefined
+        const enabled = params.enabled !== undefined ? normalizeBoolean(params.enabled) : undefined
+
+        // --- Strip irrelevant fields based on frequency ---
+        if (frequency === 'daily') {
+          daysOfWeek = null; dayOfMonth = null; months = null; monthOfYear = null
+        } else if (frequency === 'weekly') {
+          dayOfMonth = null; months = null; monthOfYear = null
+        } else if (frequency === 'monthly') {
+          daysOfWeek = null; monthOfYear = null
+        } else if (frequency === 'yearly') {
+          daysOfWeek = null; months = null
+        }
+
+        // --- Build input object explicitly from known fields ---
+        const input: RecurringTemplateInput & { id?: string } = {}
+        if (params.id !== undefined) input.id = params.id as string
+        if (params.title !== undefined) input.title = params.title as string
+        if (params.description !== undefined) input.description = normalizeNullableString(params.description) ?? undefined
+        if (params.projectId !== undefined) input.projectId = normalizeNullableString(params.projectId)
+        if (params.icon !== undefined) input.icon = params.icon as string
+        if (frequency !== undefined) input.frequency = frequency
+        if (daysOfWeek !== undefined) input.daysOfWeek = daysOfWeek
+        if (dayOfMonth !== undefined) input.dayOfMonth = dayOfMonth
+        if (months !== undefined) input.months = months
+        if (monthOfYear !== undefined) input.monthOfYear = monthOfYear
+        if (params.timeOfDay !== undefined) input.timeOfDay = normalizeNullableString(params.timeOfDay)
+        if (isAllDay !== undefined) input.isAllDay = isAllDay
+        if (leadTimeValue !== undefined) input.leadTimeValue = leadTimeValue
+        if (leadTimeUnit !== undefined) input.leadTimeUnit = leadTimeUnit
+        if (reminderMinutes !== undefined) input.reminderMinutes = reminderMinutes
+        if (overlapPolicy !== undefined) input.overlapPolicy = overlapPolicy
+        if (enabled !== undefined) input.enabled = enabled
 
         const id = params.id as string | undefined
         const template = await repo.upsertRecurringTemplate(id, input)
