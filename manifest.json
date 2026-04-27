@@ -496,7 +496,8 @@
       {
         "id": "work_projects_upsert",
         "name": "Add/Update Project",
-        "description": "Create or update a work project."
+        "description": "Create or update a work project.",
+        "requiresConfirmation": false
       },
       {
         "id": "work_projects_delete",
@@ -518,7 +519,8 @@
       {
         "id": "work_todos_upsert",
         "name": "Add/Update Todo",
-        "description": "Create or update a todo item."
+        "description": "Create or update a todo item.",
+        "requiresConfirmation": false
       },
       {
         "id": "work_todos_delete",
@@ -528,7 +530,8 @@
       {
         "id": "work_comments_add",
         "name": "Add Comment",
-        "description": "Add a comment to a todo."
+        "description": "Add a comment to a todo.",
+        "requiresConfirmation": false
       },
       {
         "id": "work_comments_delete",
@@ -538,7 +541,8 @@
       {
         "id": "work_subitems_add",
         "name": "Add Subitem",
-        "description": "Add a subitem to a todo."
+        "description": "Add a subitem to a todo.",
+        "requiresConfirmation": false
       },
       {
         "id": "work_subitems_delete",
@@ -560,7 +564,8 @@
       {
         "id": "work_settings_update",
         "name": "Update Work Settings",
-        "description": "Update work extension settings."
+        "description": "Update work extension settings.",
+        "requiresConfirmation": false
       },
       {
         "id": "work_recurring_list",
@@ -577,7 +582,8 @@
       {
         "id": "work_recurring_upsert",
         "name": "Add/Update Recurring Template",
-        "description": "Create or update a recurring todo template."
+        "description": "Create or update a recurring todo template.",
+        "requiresConfirmation": false
       },
       {
         "id": "work_recurring_delete",
