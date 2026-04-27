@@ -458,6 +458,9 @@ function activate(context: ExtensionContext): Disposable {
               // Update the todo object for display
               ;(state.todo as unknown as Record<string, unknown>)[field] = value
 
+              // Notify the UI so bound fields (e.g. Select.selectedValue)
+              // re-read the new scope value instead of waiting for save.
+              emitEvent('work.modal.changed')
               return { success: true }
             } catch (error) {
               return {
