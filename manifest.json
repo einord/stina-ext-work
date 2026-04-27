@@ -85,23 +85,27 @@
           },
           "searchParam": "query",
           "limitParam": "limit",
-          "idParam": "id"
-        },
-        "fields": [
-          {
-            "id": "name",
-            "title": "Name",
-            "type": "string",
-            "validation": {
-              "required": true
+          "idParam": "id",
+          "editView": {
+            "content": {
+              "component": "VerticalStack",
+              "gap": 1,
+              "children": [
+                {
+                  "component": "TextInput",
+                  "label": "Name",
+                  "value": "$item.name"
+                },
+                {
+                  "component": "TextArea",
+                  "label": "Description",
+                  "rows": 5,
+                  "value": "$item.description"
+                }
+              ]
             }
-          },
-          {
-            "id": "description",
-            "title": "Description",
-            "type": "string"
           }
-        ]
+        }
       },
       {
         "id": "reminders",
