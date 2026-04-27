@@ -230,7 +230,8 @@
               "action": "getEditModalState",
               "refreshOn": [
                 "work.modal.opened",
-                "work.modal.closed"
+                "work.modal.closed",
+                "work.modal.changed"
               ]
             }
           },
